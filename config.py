@@ -4,9 +4,9 @@ import os
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'A_VERY_SECRET_AND_COMPLEX_KEY_THAT_NO_ONE_CAN_GUESS_EASILY'
 
-    # استخدام MySQL مع بيانات الاتصال الصحيحة
+
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-    'postgresql+psycopg2://user:password@localhost/mydatabase'
+'mysql+pymysql://<username>:<password>@<hostname>/<database_name>'
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
