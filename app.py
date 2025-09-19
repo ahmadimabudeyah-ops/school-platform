@@ -98,7 +98,7 @@ app = create_app()
 # =========================
 # تهيئة Socket.IO
 # =========================
-async_mode = 'gevent'
+async_mode = 'threading'
 
 socketio = SocketIO(
     app,
