@@ -50,6 +50,9 @@ def create_app():
         # إذا كان هناك متغير بيئة لرابط قاعدة البيانات، استخدمه
         if os.environ.get('DATABASE_URL'):
             app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+            # تحويل postgres:// إلى postgresql:// إذا لزم الأمر
+            if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+                app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
     except ImportError:
         pass
 
@@ -85,15 +88,33 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['ASSIGNMENTS_UPLOAD_FOLDER'], exist_ok=True)
 
+    # تهيئة قاعدة البيانات وإنشاء مدير افتراضي
+    with app.app_context():
+        try:
+            db.create_all()
+            print("✅ تم إنشاء الجداول بنجاح")
+            
+            # إنشاء مدير افتراضي إذا لم يكن موجوداً
+            admin_user = User.query.filter_by(role='admin').first()
+            if not admin_user:
+                admin_user = User(
+                    username='admin',
+                    email='admin@school.com',
+                    role='admin',
+                    password='admin123'
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+                print("✅ تم إنشاء المستخدم المدير الافتراضي")
+                
+        except Exception as e:
+            print(f"❌ خطأ في تهيئة قاعدة البيانات: {str(e)}")
+            # في حالة الخطأ، لا توقف التطبيق ولكن سجل الخطأ فقط
+
     return app
 
 
 app = create_app()
-
-# =========================
-# تهيئة قاعدة البيانات وإنشاء مدير افتراضي
-# =========================
-
 
 # =========================
 # تهيئة Socket.IO
