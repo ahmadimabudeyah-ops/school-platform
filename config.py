@@ -6,7 +6,7 @@ class Config:
 
     # استخدام MySQL مع بيانات الاتصال الصحيحة
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+pymysql://school_user:school_password@localhost/school_platform'
+    'postgresql+psycopg2://user:password@localhost/mydatabase'
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
