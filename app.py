@@ -94,43 +94,7 @@ app = create_app()
 # تهيئة قاعدة البيانات وإنشاء مدير افتراضي
 # =========================
 
-with app.app_context():
-    try:
-        db.create_all()
-        
-        # حذف أي مدير موجود مسبقاً
-        admin_user = User.query.filter_by(role='admin').first()
-        if admin_user:
-            db.session.delete(admin_user)
-            db.session.commit()
-            print("🗑️ تم حذف المدير القديم")
-        
-        # إنشاء مدير جديد مع كلمة مرور صحيحة
-        from werkzeug.security import generate_password_hash
-        
-        admin_user = User(
-            username='admin',
-            email='admin@example.com', 
-            role='admin',
-            password='admin'  # هذه ستعاد كتابتها بواسطة set_password
-        )
-        # استخدام التجزئة المباشرة لتجنب المشكلة
-        admin_user.password_hash = generate_password_hash('admin', method='pbkdf2:sha256')
-        
-        db.session.add(admin_user)
-        db.session.commit()
-        
-        print("✅ تم إنشاء مدير جديد بكلمة المرور 'admin'")
-        print(f"🔐 تجزئة كلمة المرور: {admin_user.password_hash}")
-        
-        # اختبار التحقق من كلمة المرور مباشرة
-        from werkzeug.security import check_password_hash
-        test_result = check_password_hash(admin_user.password_hash, 'admin')
-        print(f"🔐 اختبار التحقق: {test_result}")
-        
-    except Exception as e:
-        logging.error(f"خطأ في تهيئة قاعدة البيانات: {str(e)}")
-        raise e
+
 # =========================
 # تهيئة Socket.IO
 # =========================
