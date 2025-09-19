@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4 col-md-8 offset-md-2">
+    <div class="card shadow-lg">
+      <div class="card-header text-center bg-success text-white">
+        <h2>إضافة مادة دراسية جديدة</h2>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          {{ form.hidden_tag() }}
+          
+          <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="اسم المادة الدراسية") }}
+            {% for error in form.name.errors %}<div class="text-danger mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          
+          <div class="mb-3">
+            {{ form.class_id.label(class="form-label") }}
+            {{ form.class_id(class="form-select") }}
+            {% for error in form.class_id.errors %}<div class="text-danger mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          
+          <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows="3", placeholder="وصف موجز للمادة") }}
+            {% for error in form.description.errors %}<div class="text-danger mt-1">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="d-grid gap-2 mt-4">
+            {{ form.submit(class="btn btn-success btn-lg") }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

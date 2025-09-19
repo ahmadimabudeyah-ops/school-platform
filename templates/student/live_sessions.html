@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">الجلسات المباشرة</h2>
+    <p class="text-muted">انضم إلى الجلسات المباشرة المجدولة مع المعلمين.</p>
+    <hr>
+
+    {% if sessions %}
+      <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for session in sessions %}
+          <div class="col">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <h5 class="card-title">{{ session.title }}</h5>
+                <p class="card-text text-muted">المعلم: {{ session.teacher.username }}</p>
+                <p class="card-text">
+                  <small class="text-muted">
+                    الوقت: {{ session.start_time.strftime('%Y-%m-%d %H:%M') }}
+                  </small>
+                </p>
+<a href="{{ url_for('student.watch_live', session_id=session.id) }}" class="btn btn-primary">
+                  <i class="bi bi-play-circle-fill"></i> انضم إلى الجلسة
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        لا توجد جلسات مباشرة نشطة حالياً.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

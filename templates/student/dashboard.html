@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">لوحة الطالب: {{ current_user.username }}</h2>
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="bi bi-mortarboard"></i> معلومات الطالب</h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <p><strong>الاسم:</strong> {{ current_user.username }}</p>
+                <p><strong>البريد الإلكتروني:</strong> {{ current_user.email }}</p>
+              </div>
+              <div class="col-md-6">
+                
+                <p><strong>الصف الدراسي:</strong> {{ current_user.class_rel.name if current_user.class_rel else 'غير محدد' }}</p>
+                <p><strong>الدور:</strong> طالب</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="bi bi-journal-text"></i> الاختبارات المتاحة</h4>
+          </div>
+          <div class="card-body">
+            {% if available_exams %}
+              <ul class="list-group list-group-flush">
+                {% for exam in available_exams %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>{{ exam.title }}</strong> {% if exam.subject %}({{ exam.subject.name }}){% endif %}
+                      <br>
+                      <small class="text-muted">ينتهي في: {{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                    <a href="{{ url_for('student.take_exam', exam_id=exam.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-play-fill"></i> بدء الاختبار</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-info" role="alert">
+                لا يوجد اختبارات متاحة حالياً.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-warning text-white">
+            <h4 class="mb-0"><i class="bi bi-clipboard-check"></i> الواجبات القادمة</h4>
+          </div>
+          <div class="card-body">
+            {% if assignments_with_status %}
+              <ul class="list-group list-group-flush">
+                {% for item in assignments_with_status %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>{{ item.assignment.title }}</strong>
+                      <br>
+                      <small class="text-muted">تاريخ الاستحقاق: {{ item.assignment.due_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                    <div>
+                      {% if item.is_submitted %}
+                        <span class="badge bg-success me-2">تم التقديم</span>
+                        {% if item.submission.grade is not none %}
+                            <span class="badge bg-primary">الدرجة: {{ item.submission.grade }}</span>
+                        {% endif %}
+                      {% else %}
+                        <a href="{{ url_for('student.submit_assignment', assignment_id=item.assignment.id) }}" class="btn btn-sm btn-outline-warning">تقديم الواجب</a>
+                      {% endif %}
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-warning" role="alert">
+                لا يوجد واجبات قادمة.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="bi bi-camera-video"></i> الجلسات المباشرة</h4>
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <p class="mb-0">انضم إلى الجلسات المباشرة مع المعلمين</p>
+              <a href="{{ url_for('student.live_sessions') }}" class="btn btn-success">
+                <i class="bi bi-arrow-right"></i> عرض الجلسات
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4 col-md-8 offset-md-2">
+    <div class="card shadow-sm">
+      <div class="card-header text-center bg-primary text-white">
+        <h2>تقديم الواجب: <span class="fw-bold">{{ assignment.title }}</span></h2>
+        <p class="mb-0">تاريخ الاستحقاق: {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}</p>
+      </div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+          {{ form.hidden_tag() }}
+
+          {% if assignment.tasks %}
+            {% for task in assignment.tasks %}
+              <div class="mb-4 p-3 border rounded bg-light">
+                <h4>مهمة رقم {{ loop.index }}:</h4>
+                <p class="fw-bold">{{ task.instructions }}</p>
+                
+                <input type="hidden" name="task_ids[]" value="{{ task.id }}">
+
+                {% if task.task_type == 'short_answer' %}
+                  <div class="mb-3">
+                    <label for="answer_text_{{ task.id }}" class="form-label">إجابتك:</label>
+                    <textarea class="form-control" id="answer_text_{{ task.id }}" name="answer_text_{{ task.id }}" rows="3" required></textarea>
+                  </div>
+                {% elif task.task_type == 'file_upload' %}
+                  <div class="mb-3">
+                    <label for="answer_file_{{ task.id }}" class="form-label">رفع الملف:</label>
+                    <input type="file" class="form-control" id="answer_file_{{ task.id }}" name="answer_file_{{ task.id }}" required>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-success btn-lg">تقديم الواجب</button>
+            </div>
+          {% else %}
+            <div class="alert alert-info" role="alert">
+              لا توجد مهام في هذا الواجب.
+            </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

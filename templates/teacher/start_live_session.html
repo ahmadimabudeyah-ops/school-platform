@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">بدء جلسة بث مباشر</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('teacher.start_live_session') }}">
+                {{ form.csrf_token }}
+
+                <div class="mb-3">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ form.subject_id.label(class="form-label") }}
+                    {{ form.subject_id(class="form-control") }}
+                </div>
+                <div class="mb-3 form-check">
+                    {{ form.is_private(class="form-check-input") }}
+                    {{ form.is_private.label(class="form-check-label") }}
+                </div>
+                <div class="mb-3" id="password-field" style="display: none;">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-control") }}
+                </div>
+                
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const isPrivateCheckbox = document.getElementById('is_private');
+        const passwordField = document.getElementById('password-field');
+
+        isPrivateCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                passwordField.style.display = 'block';
+            } else {
+                passwordField.style.display = 'none';
+            }
+        });
+        
+        // Initial check in case the form is rendered with `is_private` already checked
+        if (isPrivateCheckbox.checked) {
+            passwordField.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

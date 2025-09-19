@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">تقرير تسليم الواجبات وتقييمها</h2>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+      <i class="bi bi-arrow-right"></i> العودة للوحة التحكم
+    </a>
+  </div>
+
+  <!-- فلترة التقرير -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="bi bi-funnel"></i> خيارات التقرير</h5>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-4">
+          <label for="class_filter" class="form-label">الصف الدراسي</label>
+          <select class="form-select" id="class_filter" name="class_filter">
+            <option value="">جميع الصفوف</option>
+            <!-- سيتم إضافة خيارات الصفوف عبر جافاسكريبت -->
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="status_filter" class="form-label">حالة التسليم</label>
+          <select class="form-select" id="status_filter" name="status_filter">
+            <option value="">جميع الحالات</option>
+            <option value="submitted">تم التسليم</option>
+            <option value="not_submitted">لم يتم التسليم</option>
+            <option value="graded">تم التقييم</option>
+            <option value="not_graded">بانتظار التقييم</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="teacher_filter" class="form-label">المعلم</label>
+          <select class="form-select" id="teacher_filter" name="teacher_filter">
+            <option value="">جميع المعلمين</option>
+            <!-- سيتم إضافة خيارات المعلمين عبر جافاسكريبت -->
+          </select>
+        </div>
+        <div class="col-12 text-center">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="bi bi-filter"></i> تطبيق الفلترة
+          </button>
+          <button type="reset" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise"></i> إعادة تعيين
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- إحصائيات سريعة -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center bg-success text-white">
+        <div class="card-body">
+          <h5 class="card-title">{{ report_data|length }}</h5>
+          <p class="card-text">عدد الواجبات</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center bg-info text-white">
+        <div class="card-body">
+          <h5 class="card-title">
+            {% set total_submissions = [] %}
+            {% for assignment in report_data %}
+              {% for submission in assignment.submissions %}
+                {{ total_submissions.append(1) or "" }}
+              {% endfor %}
+            {% endfor %}
+            {{ total_submissions|length }}
+          </h5>
+          <p class="card-text">إجمالي التقديمات</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center bg-warning text-dark">
+        <div class="card-body">
+          <h5 class="card-title">
+            {% set pending_grading = [] %}
+            {% for assignment in report_data %}
+              {% for submission in assignment.submissions %}
+                {% if submission.grade is none %}
+                  {{ pending_grading.append(1) or "" }}
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+            {{ pending_grading|length }}
+          </h5>
+          <p class="card-text">تقديمات بانتظار التقييم</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center bg-danger text-white">
+        <div class="card-body">
+          <h5 class="card-title">
+            {% set not_submitted = [] %}
+            {% for assignment in report_data %}
+              {% for student in assignment.not_submitted %}
+                {{ not_submitted.append(1) or "" }}
+              {% endfor %}
+            {% endfor %}
+            {{ not_submitted|length }}
+          </h5>
+          <p class="card-text">لم يسلموا بعد</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- التقرير التفصيلي -->
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0"><i class="bi bi-list-check"></i> التقرير التفصيلي لتسليم الواجبات</h5>
+    </div>
+    <div class="card-body">
+      {% if report_data %}
+        <div class="accordion" id="assignmentsAccordion">
+          {% for assignment in report_data %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading{{ assignment.id }}">
+              <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                      data-bs-toggle="collapse" data-bs-target="#collapse{{ assignment.id }}" 
+                      aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                      aria-controls="collapse{{ assignment.id }}">
+                <div class="d-flex justify-content-between w-100 me-3">
+                  <span>
+                    <strong>{{ assignment.title }}</strong> - 
+                    {{ assignment.subject }} - 
+                    الصف: {{ assignment.class }}
+                  </span>
+                  <span class="badge bg-{{ 'success' if assignment.submissions else 'secondary' }} me-2">
+                    {{ assignment.submissions|length }} / {{ assignment.submissions|length + assignment.not_submitted|length }}
+                  </span>
+                </div>
+              </button>
+            </h2>
+            <div id="collapse{{ assignment.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                 aria-labelledby="heading{{ assignment.id }}" data-bs-parent="#assignmentsAccordion">
+              <div class="accordion-body">
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <strong>المعلم:</strong> {{ assignment.teacher }}
+                  </div>
+                  <div class="col-md-6">
+                    <strong>موعد الاستحقاق:</strong> 
+                    <span class="{% if datetime.utcnow() > assignment.due_date %}text-danger{% endif %}">
+                      {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- الطلاب الذين سلموا -->
+                <h6 class="mt-4 text-success">
+                  <i class="bi bi-check-circle"></i> الطلاب الذين سلموا الواجب ({{ assignment.submissions|length }})
+                </h6>
+                {% if assignment.submissions %}
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th>اسم الطالب</th>
+                        <th>الصف</th>
+                        <th>وقت التسليم</th>
+                        <th>الدرجة</th>
+                        <th>ملاحظات</th>
+                        <th>وقت التقييم</th>
+                        <th>الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for submission in assignment.submissions %}
+                      <tr class="{% if submission.grade is none %}table-warning{% else %}table-success{% endif %}">
+                        <td>{{ submission.student_name }}</td>
+                        <td>{{ submission.student_class }}</td>
+                        <td>{{ submission.submission_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                          {% if submission.grade is not none %}
+                            <span class="badge bg-{% if submission.grade >= 50 %}success{% else %}danger{% endif %}">
+                              {{ submission.grade }}
+                            </span>
+                          {% else %}
+                            <span class="badge bg-secondary">لم يتم التقييم</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if submission.feedback %}
+                            <button class="btn btn-sm btn-info" data-bs-toggle="tooltip" 
+                                    title="{{ submission.feedback }}">
+                              <i class="bi bi-chat-text"></i> عرض الملاحظات
+                            </button>
+                          {% else %}
+                            <span class="text-muted">لا توجد ملاحظات</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if submission.graded_at %}
+                            {{ submission.graded_at.strftime('%Y-%m-%d %H:%M') }}
+                          {% else %}
+                            <span class="text-muted">-</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <span class="badge bg-{% if submission.grade is not none %}success{% else %}warning{% endif %}">
+                            {{ submission.status }}
+                          </span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle"></i> لم يقم أي طالب بتسليم هذا الواجب بعد.
+                </div>
+                {% endif %}
+
+                <!-- الطلاب الذين لم يسلموا -->
+                <h6 class="mt-4 text-danger">
+                  <i class="bi bi-x-circle"></i> الطلاب الذين لم يسلموا الواجب ({{ assignment.not_submitted|length }})
+                </h6>
+                {% if assignment.not_submitted %}
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th>اسم الطالب</th>
+                        <th>الصف</th>
+                        <th>الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for student in assignment.not_submitted %}
+                      <tr class="table-danger">
+                        <td>{{ student.student_name }}</td>
+                        <td>{{ student.student_class }}</td>
+                        <td>
+                          <span class="badge bg-danger">
+                            {% if datetime.utcnow() > assignment.due_date %}
+                              متأخر في التسليم
+                            {% else %}
+                              لم يسلم بعد
+                            {% endif %}
+                          </span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                  <i class="bi bi-check-circle"></i> جميع الطلاب سلموا هذا الواجب.
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-info text-center">
+          <i class="bi bi-info-circle"></i> لا توجد واجبات في النظام.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// تفعيل أدوات التلميح
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+  return new bootstrap.Tooltip(tooltipTriggerEl)
+})
+
+// فلترة الجداول (وظيفة أساسية)
+function filterTable() {
+  const classFilter = document.getElementById('class_filter').value.toLowerCase();
+  const statusFilter = document.getElementById('status_filter').value;
+  const teacherFilter = document.getElementById('teacher_filter').value.toLowerCase();
+  
+  document.querySelectorAll('.accordion-item').forEach(item => {
+    const assignmentTitle = item.querySelector('.accordion-button').textContent.toLowerCase();
+    let show = true;
+    
+    if (classFilter && !assignmentTitle.includes(classFilter)) {
+      show = false;
+    }
+    
+    if (teacherFilter && !assignmentTitle.includes(teacherFilter)) {
+      show = false;
+    }
+    
+    if (statusFilter) {
+      const submissions = item.querySelectorAll('tbody tr');
+      let hasStatus = false;
+      
+      submissions.forEach(row => {
+        const status = row.querySelector('td:last-child').textContent.toLowerCase();
+        if (status.includes(statusFilter)) {
+          hasStatus = true;
+        }
+      });
+      
+      if (!hasStatus) {
+        show = false;
+      }
+    }
+    
+    item.style.display = show ? 'block' : 'none';
+  });
+}
+
+// إضافة خيارات الفلترة (سيتم تحسينها لاحقاً)
+document.addEventListener('DOMContentLoaded', function() {
+  // إضافة خيارات الصفوف
+  const classFilter = document.getElementById('class_filter');
+  const classes = new Set();
+  
+  document.querySelectorAll('.accordion-item').forEach(item => {
+    const classText = item.querySelector('.accordion-button').textContent;
+    const classMatch = classText.match(/الصف: (.*?)(?=\s|$)/);
+    if (classMatch && classMatch[1]) {
+      classes.add(classMatch[1]);
+    }
+  });
+  
+  classes.forEach(className => {
+    const option = document.createElement('option');
+    option.value = className;
+    option.textContent = className;
+    classFilter.appendChild(option);
+  });
+  
+  // إضافة معالجات الأحداث للفلترة
+  document.querySelectorAll('#class_filter, #status_filter, #teacher_filter').forEach(filter => {
+    filter.addEventListener('change', filterTable);
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">التقارير والإحصائيات</h2>
+
+  <!-- أزرار التبويب -->
+  <ul class="nav nav-tabs mb-4 justify-content-center" id="reportsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">
+        <i class="bi bi-people"></i> تقرير الطلاب
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="teachers-tab" data-bs-toggle="tab" data-bs-target="#teachers" type="button" role="tab">
+        <i class="bi bi-person-badge"></i> تقرير المعلمين
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="classes-tab" data-bs-toggle="tab" data-bs-target="#classes" type="button" role="tab">
+        <i class="bi bi-building"></i> تقرير الصفوف
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="grades-tab" data-bs-toggle="tab" data-bs-target="#grades" type="button" role="tab">
+        <i class="bi bi-graph-up"></i> تقرير العلامات
+      </button>
+    </li>
+  </ul>
+
+  <!-- محتوى التبويبات -->
+  <div class="tab-content" id="reportsTabsContent">
+    
+    <!-- تبويب الطلاب -->
+    <div class="tab-pane fade show active" id="students" role="tabpanel">
+      <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0"><i class="bi bi-people"></i> تقرير الطلاب والعلامات</h4>
+        </div>
+        <div class="card-body">
+          {% if students %}
+          <div class="table-responsive">
+            <table class="table table-hover table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>اسم الطالب</th>
+                  <th>البريد الإلكتروني</th>
+                  <th>الصف</th>
+                  <th>عدد الاختبارات</th>
+                  <th>متوسط العلامات</th>
+                  <th>أعلى علامة</th>
+                  <th>أقل علامة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for student in students %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ student.username }}</td>
+                  <td>{{ student.email }}</td>
+                  <td>
+                    {% if student.class %}
+                      <span class="badge bg-info">{{ student.class.name }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">غير محدد</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-primary">{{ student.exam_results|length }}</span>
+                  </td>
+                  <td>
+                    {% if student.exam_results %}
+                      {% set total_score = student.exam_results|sum(attribute='score') %}
+                      {% set avg_score = total_score / student.exam_results|length %}
+                      <span class="badge bg-success">{{ "%.2f"|format(avg_score) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if student.exam_results %}
+                      {% set max_result = student.exam_results|max(attribute='score') %}
+                      <span class="badge bg-success">{{ "%.2f"|format(max_result.score) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if student.exam_results %}
+                      {% set min_result = student.exam_results|min(attribute='score') %}
+                      <span class="badge bg-danger">{{ "%.2f"|format(min_result.score) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> لا يوجد طلاب مسجلين في النظام.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- تبويب المعلمين -->
+    <div class="tab-pane fade" id="teachers" role="tabpanel">
+      <div class="card shadow-lg">
+        <div class="card-header bg-success text-white">
+          <h4 class="mb-0"><i class="bi bi-person-badge"></i> تقرير المعلمين والإنجازات</h4>
+        </div>
+        <div class="card-body">
+          {% if teachers %}
+          <div class="table-responsive">
+            <table class="table table-hover table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>اسم المعلم</th>
+                  <th>البريد الإلكتروني</th>
+                  <th>عدد الاختبارات</th>
+                  <th>عدد الواجبات</th>
+                  <th>عدد جلسات البث</th>
+                  <th>آخر نشاط</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ teacher.username }}</td>
+                  <td>{{ teacher.email }}</td>
+                  <td>
+                    <span class="badge bg-primary">{{ teacher.exams_created|length }}</span>
+                  </td>
+                  <td>
+                    <span class="badge bg-warning">{{ teacher.assignments_created|length }}</span>
+                  </td>
+                  <td>
+                    <span class="badge bg-info">{{ teacher.live_sessions|length }}</span>
+                  </td>
+                  <td>
+                    {% if teacher.exams_created or teacher.assignments_created %}
+                      {% set last_exam = teacher.exams_created|sort(attribute='start_time')|last if teacher.exams_created else None %}
+                      {% set last_assignment = teacher.assignments_created|sort(attribute='created_at')|last if teacher.assignments_created else None %}
+                      
+                      {% if last_exam and last_assignment %}
+                        {% if last_exam.start_time > last_assignment.created_at %}
+                          <small>اختبار: {{ last_exam.start_time.strftime('%Y-%m-%d') }}</small>
+                        {% else %}
+                          <small>واجب: {{ last_assignment.created_at.strftime('%Y-%m-%d') }}</small>
+                        {% endif %}
+                      {% elif last_exam %}
+                        <small>اختبار: {{ last_exam.start_time.strftime('%Y-%m-%d') }}</small>
+                      {% elif last_assignment %}
+                        <small>واجب: {{ last_assignment.created_at.strftime('%Y-%m-%d') }}</small>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge bg-secondary">لا يوجد نشاط</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> لا يوجد معلمون مسجلون في النظام.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- تبويب الصفوف -->
+    <div class="tab-pane fade" id="classes" role="tabpanel">
+      <div class="card shadow-lg">
+        <div class="card-header bg-info text-white">
+          <h4 class="mb-0"><i class="bi bi-building"></i> تقرير الصفوف والأداء</h4>
+        </div>
+        <div class="card-body">
+          {% if classes %}
+          <div class="table-responsive">
+            <table class="table table-hover table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>اسم الصف</th>
+                  <th>عدد الطلاب</th>
+                  <th>عدد المواد</th>
+                  <th>متوسط العلامات</th>
+                  <th>أعلى متوسط</th>
+                  <th>أقل متوسط</th>
+                  <th>نسبة النجاح</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for class in classes %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ class.name }}</td>
+                  <td>
+                    <span class="badge bg-primary">{{ class.students|length }}</span>
+                  </td>
+                  <td>
+                    <span class="badge bg-success">{{ class.subjects|length }}</span>
+                  </td>
+                  <td>
+                    {% set class_avg = [] %}
+                    {% for student in class.students %}
+                      {% if student.exam_results %}
+                        {% set total_score = student.exam_results|sum(attribute='score') %}
+                        {% set avg_score = total_score / student.exam_results|length %}
+                        {{ class_avg.append(avg_score) or "" }}
+                      {% endif %}
+                    {% endfor %}
+                    
+                    {% if class_avg %}
+                      {% set class_avg_total = class_avg|sum %}
+                      {% set class_avg_final = class_avg_total / class_avg|length %}
+                      <span class="badge bg-info">{{ "%.2f"|format(class_avg_final) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if class_avg %}
+                      <span class="badge bg-success">{{ "%.2f"|format(class_avg|max) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if class_avg %}
+                      <span class="badge bg-danger">{{ "%.2f"|format(class_avg|min) }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if class_avg %}
+                      {% set passing_count = class_avg|select('>=', 50)|list|length %}
+                      {% set pass_percentage = (passing_count / class_avg|length) * 100 %}
+                      <span class="badge bg-{{ 'success' if pass_percentage >= 60 else 'warning' if pass_percentage >= 40 else 'danger' }}">
+                        {{ "%.1f"|format(pass_percentage) }}%
+                      </span>
+                    {% else %}
+                      <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> لا توجد صفوف دراسية في النظام.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- تبويب العلامات -->
+    <div class="tab-pane fade" id="grades" role="tabpanel">
+      <div class="card shadow-lg">
+        <div class="card-header bg-warning text-dark">
+          <h4 class="mb-0"><i class="bi bi-graph-up"></i> تقرير العلامات التفصيلي</h4>
+        </div>
+        <div class="card-body">
+          {% if exam_results %}
+          <div class="table-responsive">
+            <table class="table table-hover table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>اسم الطالب</th>
+                  <th>الصف</th>
+                  <th>اسم الاختبار</th>
+                  <th>المادة</th>
+                  <th>المعلم</th>
+                  <th>العلامة</th>
+                  <th>النسبة</th>
+                  <th>التاريخ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for result in exam_results %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ result.student.username }}</td>
+                  <td>
+                    {% if result.student.class %}
+                      <span class="badge bg-info">{{ result.student.class.name }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">غير محدد</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ result.exam.title }}</td>
+                  <td>
+                    <span class="badge bg-success">{{ result.exam.subject.name }}</span>
+                  </td>
+                  <td>{{ result.exam.creator.username }}</td>
+                  <td>
+                    <span class="badge bg-{{ 'success' if result.score >= 50 else 'danger' }}">
+                      {{ "%.2f"|format(result.score) }}
+                    </span>
+                  </td>
+                  <td>
+                    {% set percentage = (result.score / result.exam.total_points) * 100 if result.exam.total_points > 0 else 0 %}
+                    <span class="badge bg-{{ 'success' if percentage >= 50 else 'danger' }}">
+                      {{ "%.1f"|format(percentage) }}%
+                    </span>
+                  </td>
+                  <td>
+                    <small>{{ result.submission_time.strftime('%Y-%m-%d') }}</small>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> لا توجد نتائج اختبارات في النظام.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// تفعيل تبويبات Bootstrap
+const triggerTabList = document.querySelectorAll('#reportsTabs button')
+triggerTabList.forEach(triggerEl => {
+  new bootstrap.Tab(triggerEl)
+})
+</script>
+{% endblock %}

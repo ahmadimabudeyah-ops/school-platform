@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4 text-center">مراجعة جميع الواجبات</h2>
+
+    {% if assignments %}
+      <div class="card shadow-sm"> {# Wrap table in a card #}
+        <div class="card-body p-0"> {# Remove padding to let table fill card #}
+          <div class="table-responsive">
+            <table class="table table-hover table-striped table-bordered mb-0"> {# Added table-striped, mb-0 #}
+              <thead class="table-dark">
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">عنوان الواجب</th>
+                  <th scope="col">المادة</th>
+                  <th scope="col">المعلم</th>
+                  <th scope="col">تاريخ الاستحقاق</th>
+                  <th scope="col">عدد المهام</th>
+                  <th scope="col">عدد التقديمات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for assignment in assignments %}
+                  <tr>
+                    <th scope="row">{{ loop.index }}</th>
+                    <td>{{ assignment.title }}</td>
+                    <td><span class="badge bg-info">{{ assignment.subject.name }}</span></td> {# Added badge to subject name #}
+                    <td>{{ assignment.creator.username }}</td>
+                    <td>{{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><span class="badge bg-primary">{{ assignment.tasks|length }}</span></td> {# Added badge #}
+                    <td><span class="badge bg-secondary">{{ assignment.submissions|length }}</span></td> {# Added badge #}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info text-center" role="alert">
+        لا توجد واجبات في النظام حالياً.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

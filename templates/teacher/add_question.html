@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">إضافة سؤال للاختبار: <span class="text-primary">{{ exam.title }}</span></h2>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-success text-white">
+        <h4><i class="bi bi-question-circle"></i> إضافة سؤال جديد</h4>
+      </div>
+      <div class="card-body">
+        <form method="POST" id="questionForm">
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.question_type.label(class="form-label") }}
+            {{ form.question_type(class="form-select", onchange="toggleChoiceFields()") }}
+            {% for error in form.question_type.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.text.label(class="form-label") }}
+            {{ form.text(class="form-control", rows="3", placeholder="نص السؤال") }}
+            {% for error in form.text.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          {# تم إضافة حقل النقاط هنا #}
+          <div class="mb-3">
+            {{ form.points.label(class="form-label") }}
+            {{ form.points(class="form-control", placeholder="النقاط المخصصة لهذا السؤال") }}
+            {% for error in form.points.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div id="multiple_choice_fields" style="display: none;">
+            <p class="fw-bold mt-3">خيارات الاختيار من متعدد:</p>
+            <div class="mb-3">
+              {{ form.choice1.label(class="form-label") }}
+              {{ form.choice1(class="form-control", placeholder="الخيار الأول") }}
+              {{ form.is_correct1(class="form-check-input") }}
+              {{ form.is_correct1.label(class="form-check-label") }}
+            </div>
+            <div class="mb-3">
+              {{ form.choice2.label(class="form-label") }}
+              {{ form.choice2(class="form-control", placeholder="الخيار الثاني") }}
+              {{ form.is_correct2(class="form-check-input") }}
+              {{ form.is_correct2.label(class="form-check-label") }}
+            </div>
+            <div class="mb-3">
+              {{ form.choice3.label(class="form-label") }}
+              {{ form.choice3(class="form-control", placeholder="الخيار الثالث") }}
+              {{ form.is_correct3(class="form-check-input") }}
+              {{ form.is_correct3.label(class="form-check-label") }}
+            </div>
+            <div class="mb-3">
+              {{ form.choice4.label(class="form-label") }}
+              {{ form.choice4(class="form-control", placeholder="الخيار الرابع") }}
+              {{ form.is_correct4(class="form-check-input") }}
+              {{ form.is_correct4.label(class="form-check-label") }}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.correct_answer.label(class="form-label") }}
+            {{ form.correct_answer(class="form-control", placeholder="الإجابة الصحيحة للسؤال (إذا لم يكن اختيار من متعدد)") }}
+            <small for="correct_answer" class="form-text text-muted">أدخل الإجابة المتوقعة للسؤال القصير أو 'true'/'false' لسؤال الصواب/الخطأ.</small>
+            {% for error in form.correct_answer.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="d-grid gap-2 mt-4">
+            {{ form.submit(class="btn btn-success btn-lg") }}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <hr class="my-5">
+
+    <h3 class="mb-3">الأسئلة الحالية في الاختبار:</h3>
+    {% if questions %}
+      <div class="list-group">
+        {% for question in questions %}
+          <div class="list-group-item list-group-item-action flex-column align-items-start mb-3">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">السؤال رقم {{ loop.index }}:</h5>
+              <small class="badge bg-info text-dark">{{ question.question_type }} ({{ question.points }} نقاط)</small>
+            </div>
+            <p class="mb-1">{{ question.text }}</p>
+            {% if question.question_type == 'multiple_choice' %}
+              <ul class="list-group mt-2">
+                {% for choice in question.choices %}
+                  <li class="list-group-item list-group-item-sm {% if choice.is_correct %}list-group-item-success{% endif %}">
+                    {{ choice.text }} {% if choice.is_correct %}<i class="bi bi-check-circle-fill text-success"></i> (صحيح){% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="mb-1"><strong>الإجابة الصحيحة:</strong> {{ question.correct_answer }}</p>
+            {% endif %}
+            <div class="d-flex justify-content-end mt-2">
+              <a href="{{ url_for('teacher.edit_question', question_id=question.id) }}" class="btn btn-sm btn-warning me-2" title="تعديل السؤال"><i class="bi bi-pencil"></i></a>
+              <form action="{{ url_for('teacher.delete_question', question_id=question.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا السؤال؟');">
+                <button type="submit" class="btn btn-sm btn-danger" title="حذف السؤال"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        لا توجد أسئلة مضافة لهذا الاختبار بعد.
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    function toggleChoiceFields() {
+      var questionType = document.getElementById('question_type').value;
+      var mcFields = document.getElementById('multiple_choice_fields');
+      var correctAnswerLabel = document.querySelector('label[for=\"correct_answer\"]');
+      var correctAnswerInput = document.getElementById('correct_answer');
+      var correctAnswerSmall = document.querySelector('small[for=\"correct_answer\"]');
+
+      if (questionType === 'multiple_choice') {
+        mcFields.style.display = 'block';
+        if (correctAnswerLabel) correctAnswerLabel.textContent = 'الإجابة الصحيحة (اختر من الخيارات)';
+        if (correctAnswerInput) correctAnswerInput.style.display = 'none'; // Hide the input field for correct_answer
+        if (correctAnswerSmall) correctAnswerSmall.style.display = 'none'; // Hide the small text
+      } else {
+        mcFields.style.display = 'none';
+        if (correctAnswerLabel) correctAnswerLabel.textContent = 'الإجابة الصحيحة';
+        if (correctAnswerInput) correctAnswerInput.style.display = 'block'; // Show the input field
+        if (correctAnswerSmall) {
+            correctAnswerSmall.style.display = 'block'; // Show the small text
+            if (questionType === 'true_false') {
+                correctAnswerSmall.textContent = 'أدخل "true" أو "false".';
+            } else { // short_answer
+                correctAnswerSmall.textContent = 'أدخل الإجابة المتوقعة.';
+            }
+        }
+      }
+    }
+
+    // استدعاء الدالة عند تحميل الصفحة للتأكد من الحالة الصحيحة للحقول
+    document.addEventListener('DOMContentLoaded', toggleChoiceFields);
+  </script>
+{% endblock %}

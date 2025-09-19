@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container">
+    <div class="text-center mb-5">
+      <h1 class="fw-bold text-primary">مرحباً، {{ current_user.username }}</h1>
+      <p class="lead text-muted">لوحة تحكم المعلم - إدارة الفصول والمواد التعليمية</p>
+    </div>
+
+    <div class="row g-4 mb-5">
+      <div class="col-md-6">
+        <div class="card h-100 border-0 shadow-lg">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>الاختبارات</h3>
+            <span class="badge bg-light text-primary rounded-pill fs-5">{{ exams|length }}</span>
+          </div>
+          <div class="card-body">
+            {% if exams %}
+              <div class="list-group list-group-flush">
+                {% for exam in exams %}
+                  <div class="list-group-item border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5 class="mb-1">{{ exam.title }}</h5>
+                      <small class="text-muted">{{ exam.subject.name }} - ينتهي في {{ exam.end_time.strftime('%Y-%m-%d') }}</small>
+                    </div>
+                    <div>
+                      <a href="{{ url_for('teacher.add_question', exam_id=exam.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle"></i> أسئلة</a>
+                      {# يمكنك إضافة المزيد من الإجراءات هنا مثل عرض النتائج #}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="text-center mt-4">
+                <a href="{{ url_for('teacher.exams_list') }}" class="btn btn-link text-decoration-none">عرض الكل <i class="bi bi-arrow-right"></i></a>
+              </div>
+            {% else %}
+              <div class="alert alert-info text-center" role="alert">
+                لا توجد اختبارات حتى الآن.
+                <p class="mb-0 mt-2"><a href="{{ url_for('teacher.create_exam') }}" class="alert-link">أنشئ اختبارًا جديدًا!</a></p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card h-100 border-0 shadow-lg">
+          <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h3 class="mb-0"><i class="bi bi-journal-check me-2"></i>الواجبات</h3>
+            <span class="badge bg-light text-success rounded-pill fs-5">{{ assignments|length }}</span>
+          </div>
+          <div class="card-body">
+            {% if assignments %}
+              <div class="list-group list-group-flush">
+                {% for assignment in assignments %}
+                  <div class="list-group-item border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5 class="mb-1">{{ assignment.title }}</h5>
+                      <small class="text-muted">{{ assignment.subject.name }} - ينتهي في {{ assignment.due_date.strftime('%Y-%m-%d') }}</small>
+                    </div>
+                    <div>
+                      <a href="{{ url_for('teacher.add_task', assignment_id=assignment.id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-circle"></i> مهام</a>
+                      {# يمكنك إضافة المزيد من الإجراءات هنا مثل عرض التقديمات #}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="text-center mt-4">
+                <a href="{{ url_for('teacher.assignments_list') }}" class="btn btn-link text-decoration-none">عرض الكل <i class="bi bi-arrow-right"></i></a>
+              </div>
+            {% else %}
+              <div class="alert alert-info text-center" role="alert">
+                لا توجد واجبات حتى الآن.
+                <p class="mb-0 mt-2"><a href="{{ url_for('teacher.create_assignment') }}" class="alert-link">أنشئ واجبًا جديدًا الآن!</a></p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>إحصائيات سريعة</h4>
+          </div>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col-4">
+                <div class="p-3 bg-light rounded mb-3">
+                  <h3 class="text-primary mb-0">{{ exams|length }}</h3>
+                  <small class="text-muted">اختبارات</small>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-3 bg-light rounded mb-3">
+                  <h3 class="text-success mb-0">{{ assignments|length }}</h3>
+                  <small class="text-muted">واجبات</small>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-3 bg-light rounded mb-3">
+                  <h3 class="text-warning mb-0">{{ total_submissions_count }}</h3>
+                  <small class="text-muted">تقديمات</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-warning text-white">
+            <h4 class="mb-0"><i class="bi bi-bell me-2"></i>أحدث التنبيهات</h4>
+          </div>
+          <div class="card-body">
+            {% if dashboard_alerts %}
+              {% for alert in dashboard_alerts %}
+              <div class="alert alert-{{ alert.type }} alert-dismissible fade show mb-3">
+                {{ alert.message }}
+                {% if alert.link %}
+                  <a href="{{ alert.link }}" class="alert-link ms-2">{{ alert.link_text }}</a>
+                {% endif %}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="alert alert-info text-center" role="alert">
+                لا توجد تنبيهات جديدة حالياً.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row g-4 mt-4">
+      <div class="col-md-6">
+        <div class="card h-100 border-0 shadow-lg">
+          <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+              <h3 class="mb-0"><i class="fas fa-video me-2"></i>البث المباشر</h3>
+          </div>
+          <div class="card-body">
+              <a href="{{ url_for('teacher.live_sessions') }}" class="btn btn-primary mb-3">
+                  <i class="fas fa-video"></i> إدارة الجلسات
+              </a>
+              {% if active_session %}
+                  <div class="alert alert-success">
+                      لديك جلسة بث نشطة حالياً
+                      <a href="{{ url_for('teacher.live_broadcast', session_id=active_session.id) }}" 
+                         class="btn btn-sm btn-outline-light mt-2">
+                          متابعة البث
+                      </a>
+                  </div>
+              {% else %}
+                  <p>لا توجد جلسات بث نشطة حالياً</p>
+                  <a href="{{ url_for('teacher.start_live_session') }}" class="btn btn-success">
+                      <i class="fas fa-plus"></i> بدء جلسة جديدة
+                  </a>
+              {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

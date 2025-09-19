@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>مشاهدة البث المباشر: {{ session.title }}</h2>
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> العودة
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-video"></i> البث المباشر</h5>
+                </div>
+                <div class="card-body p-0" style="background-color:#000;">
+                    <video id="teacherVideo" autoplay playsinline style="width:100%; height:auto; max-height:70vh;"></video>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments"></i> دردشة مباشرة</h5>
+                </div>
+                <div class="card-body chat-box" id="chatBox" style="overflow-y:auto; height:60vh;"></div>
+                <div class="card-footer">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="messageInput" placeholder="اكتب رسالة...">
+                        <button class="btn btn-primary" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script>
+(() => {
+    const sessionId = "{{ session.id }}";
+    const socket = io();
+    const teacherVideo = document.getElementById('teacherVideo');
+    const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+    let pc = null;
+    let teacherSid = null;
+
+    socket.on('connect', () => {
+        console.log('Connected to server');
+        socket.emit('join_live_session', { session_id: sessionId, user_type: 'student' });
+    });
+
+    socket.on('no_teacher', (data) => {
+        console.log(data.message);
+        teacherVideo.poster = 'https://via.placeholder.com/640x360?text=Waiting+for+Teacher';
+    });
+
+    socket.on('teacher_live', () => {
+        console.log('Teacher is now live!');
+    });
+
+    socket.on('teacher_left', () => {
+        console.log('Teacher has left the session.');
+        if (pc) {
+            pc.close();
+            pc = null;
+        }
+        teacherVideo.srcObject = null;
+        teacherVideo.poster = 'https://via.placeholder.com/640x360?text=Teacher+Left+the+Session';
+    });
+    
+    // Student receives the teacher's SID upon joining
+    socket.on('teacher_joined', (data) => {
+        console.log('Teacher joined with SID:', data.teacher_sid);
+        teacherSid = data.teacher_sid;
+        setupPeerConnection();
+    });
+
+    // Student receives the offer from the teacher
+    socket.on('viewer_offer', async (data) => {
+        console.log('Received offer from teacher');
+        if (!pc) {
+            setupPeerConnection();
+        }
+        
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        socket.emit('viewer_answer', {
+            to_sid: teacherSid,
+            sdp: pc.localDescription
+        });
+        console.log('Sent answer to teacher');
+    });
+
+    // Student receives ICE candidates from the teacher
+    socket.on('ice_candidate', async (data) => {
+        if (data.candidate && pc) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+                console.error('Error adding ICE candidate:', e);
+            }
+        }
+    });
+
+    function setupPeerConnection() {
+        if (pc) return;
+        
+        // تم إضافة 'bundlePolicy' لضمان التوافق مع إعدادات المعلم
+        pc = new RTCPeerConnection({ 
+            iceServers,
+            bundlePolicy: 'max-compat'
+        });
+
+        pc.ontrack = (event) => {
+            teacherVideo.srcObject = event.streams[0];
+            console.log('Received remote stream');
+        };
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    to: teacherSid,
+                    candidate: event.candidate.toJSON()
+                });
+            }
+        };
+    }
+
+    // --- Chat Messaging ---
+    document.getElementById('sendButton').addEventListener('click', sendMessage);
+    document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+        socket.emit('send_message', { session_id: sessionId, message: msg, user_type: 'student' });
+        input.value = '';
+    }
+
+    socket.on('new_message', data => {
+        const chatBox = document.getElementById('chatBox');
+        const el = document.createElement('div');
+        el.className = `mb-2 ${data.user_type === 'student' ? 'text-end' : ''}`;
+        el.innerHTML = `
+            <div class="d-flex ${data.user_type === 'student' ? 'justify-content-end' : ''}">
+                <div class="message-bubble ${data.user_type === 'student' ? 'bg-primary text-white' : 'bg-light'} p-2 rounded-3">
+                    <strong>${data.user}:</strong> ${data.message}
+                    <div class="text-muted small">${new Date(data.timestamp).toLocaleTimeString()}</div>
+                </div>
+            </div>`;
+        chatBox.appendChild(el);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    window.addEventListener('beforeunload', () => {
+        socket.emit('leave_live_session', { session_id: sessionId, user_type: 'student' });
+    });
+})();
+</script>
+{% endblock %}

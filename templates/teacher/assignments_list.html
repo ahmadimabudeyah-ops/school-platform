@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">قائمة واجباتي</h2>
+
+    <div class="mb-4">
+      <a href="{{ url_for('teacher.create_assignment') }}" class="btn btn-primary"><i class="bi bi-journal-plus"></i> إنشاء واجب جديد</a>
+    </div>
+
+    {% if assignments %}
+      <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">عنوان الواجب</th>
+              <th scope="col">المادة</th>
+              <th scope="col">تاريخ الاستحقاق</th>
+              <th scope="col">عدد المهام</th>
+              <th scope="col">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for assignment in assignments %}
+              <tr>
+                <th scope="row">{{ loop.index }}</th>
+                <td>{{ assignment.title }}</td>
+                <td>{{ assignment.subject.name }}</td>
+                <td>{{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ assignment.tasks|length }}</td>
+                <td>
+                  <a href="{{ url_for('teacher.add_task', assignment_id=assignment.id) }}" class="btn btn-sm btn-info me-1" title="إضافة/مراجعة المهام"><i class="bi bi-plus-circle"></i> مهام</a>
+                  <a href="{{ url_for('teacher.view_assignment_submissions', assignment_id=assignment.id) }}" class="btn btn-sm btn-success me-1" title="عرض التقديمات"><i class="bi bi-eye"></i> التقديمات</a>
+                  <a href="{{ url_for('teacher.edit_assignment', assignment_id=assignment.id) }}" class="btn btn-sm btn-warning me-1" title="تعديل الواجب"><i class="bi bi-pencil"></i></a>
+                  <form action="{{ url_for('teacher.delete_assignment', assignment_id=assignment.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الواجب؟');">
+                    <button type="submit" class="btn btn-sm btn-danger" title="حذف الواجب"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info text-center" role="alert">
+        لا توجد واجبات حتى الآن.
+        <p class="mb-0 mt-2"><a href="{{ url_for('teacher.create_assignment') }}" class="alert-link">أنشئ واجبًا جديدًا الآن!</a></p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

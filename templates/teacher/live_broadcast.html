@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>البث المباشر: {{ session.title }}</h2>
+        <form method="POST" action="{{ url_for('teacher.end_live_session', session_id=session.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-stop"></i> إنهاء البث
+            </button>
+        </form>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-video"></i> بث مباشر</h5>
+                </div>
+                <div class="card-body p-0" style="background-color:#000;">
+                    <video id="teacherVideo" autoplay muted playsinline style="width:100%; height:auto; max-height:70vh;"></video>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button id="toggleVideo" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-video"></i> إيقاف الفيديو
+                            </button>
+                            <button id="toggleAudio" class="btn btn-outline-secondary btn-sm ms-2">
+                                <i class="fas fa-microphone"></i> كتم الصوت
+                            </button>
+                        </div>
+                        <div class="text-muted">
+                            <span id="viewerCount">0</span> مشاهد
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments"></i> دردشة مباشرة</h5>
+                </div>
+                <div class="card-body chat-box" id="chatBox" style="overflow-y:auto; height:60vh;"></div>
+                <div class="card-footer">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="messageInput" placeholder="اكتب رسالة...">
+                        <button class="btn btn-primary" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script>
+(() => {
+    const sessionId = "{{ session.id }}";
+    const socket = io();
+    const teacherVideo = document.getElementById('teacherVideo');
+
+    const iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' }
+    ];
+
+    let localStream = null;
+    const peers = new Map();
+
+    socket.emit('join_live_session', { session_id: sessionId, user_type: 'teacher' });
+
+    socket.on('current_viewers', (data) => {
+        console.log('Current viewers:', data.students);
+    });
+
+    socket.on('viewer_count', (data) => {
+        document.getElementById('viewerCount').textContent = data.count;
+    });
+
+    socket.on('new_viewer', async (data) => {
+        const studentSid = data.student_sid;
+        console.log('New viewer joined:', studentSid);
+        
+        // تم إضافة 'bundlePolicy' لحل مشكلة عدم التوافق بين المتصفحات.
+        const pc = new RTCPeerConnection({ 
+            iceServers,
+            bundlePolicy: 'max-compat'
+        });
+        peers.set(studentSid, pc);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    to: studentSid,
+                    candidate: event.candidate.toJSON()
+                });
+            }
+        };
+
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('viewer_offer', {
+            to: studentSid,
+            sdp: pc.localDescription
+        });
+        console.log('Sent offer to student', studentSid);
+    });
+
+    socket.on('peer_left', ({ student_sid }) => {
+        const pc = peers.get(student_sid);
+        if (pc) { try { pc.close(); } catch (e) {} }
+        peers.delete(student_sid);
+        console.log('Peer left:', student_sid);
+    });
+
+    socket.on('connect_error', (err) => console.error('Socket error:', err));
+    
+    // The teacher receives the answer from the student
+    socket.on('viewer_answer', async (data) => {
+        const pc = peers.get(data.from_sid);
+        if (pc && pc.remoteDescription === null && data.sdp) {
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                console.log('Received answer from student', data.from_sid);
+            } catch (e) {
+                console.error('Error handling viewer answer:', e);
+            }
+        }
+    });
+
+    // Handle ICE candidates from the students
+    socket.on('ice_candidate', async (data) => {
+        const pc = peers.get(data.from);
+        if (pc && data.candidate) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+                console.error('Error adding ICE candidate:', e);
+            }
+        }
+    });
+
+    async function startBroadcast() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            teacherVideo.srcObject = localStream;
+            console.log('Local stream acquired.');
+        } catch (e) {
+            console.error('getUserMedia error:', e);
+            alert('Unable to access webcam or microphone. Please allow permissions.');
+        }
+    }
+
+    // Toggle video track
+    document.getElementById('toggleVideo').addEventListener('click', () => {
+        if (!localStream) return;
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            document.getElementById('toggleVideo').innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i> إيقاف الفيديو' : '<i class="fas fa-video-slash"></i> تشغيل الفيديو';
+        }
+    });
+
+    // Toggle audio track
+    document.getElementById('toggleAudio').addEventListener('click', () => {
+        if (!localStream) return;
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            document.getElementById('toggleAudio').innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i> كتم الصوت' : '<i class="fas fa-microphone-slash"></i> إلغاء الكتم';
+        }
+    });
+
+    document.getElementById('sendButton').addEventListener('click', sendMessage);
+    document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+        socket.emit('send_message', { session_id: sessionId, message: msg, user_type: 'teacher' });
+        input.value = '';
+    }
+
+    socket.on('new_message', data => {
+        const chatBox = document.getElementById('chatBox');
+        const el = document.createElement('div');
+        el.className = `mb-2 ${data.user_type === 'teacher' ? 'text-end' : ''}`;
+        el.innerHTML = `
+            <div class="d-flex ${data.user_type === 'teacher' ? 'justify-content-end' : ''}">
+                <div class="message-bubble ${data.user_type === 'teacher' ? 'bg-primary text-white' : 'bg-light'} p-2 rounded-3">
+                    <strong>${data.user}:</strong> ${data.message}
+                    <div class="text-muted small">${new Date(data.timestamp).toLocaleTimeString()}</div>
+                </div>
+            </div>`;
+        chatBox.appendChild(el);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    startBroadcast();
+
+    window.addEventListener('beforeunload', () => {
+        socket.emit('leave_live_session', { session_id: sessionId, user_type: 'teacher' });
+    });
+})();
+</script>
+{% endblock %}

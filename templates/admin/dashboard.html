@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4 text-center">لوحة تحكم المشرف</h2> {# Centered heading #}
+
+    <div class="row mb-4 justify-content-center"> {# Centered buttons #}
+      <div class="col-md-6 text-center">
+        <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary me-2 mb-2"><i class="bi bi-person-plus"></i> إضافة مستخدم جديد</a>
+        <a href="{{ url_for('admin.add_subject') }}" class="btn btn-success mb-2"><i class="bi bi-book"></i> إضافة مادة دراسية</a>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card shadow-lg mb-4"> {# Added shadow-lg #}
+          <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-people"></i> المستخدمون</h4>
+            <span class="badge bg-light text-info rounded-pill fs-6">{{ users|length if users else 0 }}</span> {# Count users #}
+          </div>
+          <div class="card-body">
+            {% if users %}
+              <ul class="list-group list-group-flush">
+                {% for user in users %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                    <div>
+                      <strong>{{ user.username }}</strong> <small class="text-muted">({{ user.email }})</small> <span class="badge bg-secondary ms-2">{{ user.role }}</span>
+                    </div>
+                    {% if user.id != current_user.id %}
+                      <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذه العملية لا يمكن التراجع عنها.');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> حذف</button>
+                      </form>
+                    {% else %}
+                      <span class="text-muted"> (أنت)</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-info text-center m-3" role="alert">
+                لا يوجد مستخدمون حالياً.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card shadow-lg mb-4"> {# Added shadow-lg #}
+          <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-bookshelf"></i> المواد الدراسية</h4>
+            <span class="badge bg-light text-warning rounded-pill fs-6">{{ subjects|length if subjects else 0 }}</span> {# Count subjects #}
+          </div>
+          <div class="card-body">
+            {% if subjects %}
+              <ul class="list-group list-group-flush">
+                {% for subject in subjects %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                    <strong>{{ subject.name }}</strong>
+                    <form action="{{ url_for('admin.delete_subject', subject_id=subject.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذه المادة؟ قد يؤثر ذلك على الاختبارات والواجبات المرتبطة بها.');">
+                      <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> حذف</button>
+                    </form>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-info text-center m-3" role="alert">
+                لا توجد مواد دراسية حالياً.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card shadow-lg mb-4">
+          <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-building"></i> الصفوف الدراسية</h4>
+            <span class="badge bg-light text-secondary rounded-pill fs-6">{{ classes|length if classes else 0 }}</span>
+          </div>
+          <div class="card-body">
+            {% if classes %}
+              <ul class="list-group list-group-flush">
+                {% for class in classes %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                    <div>
+                      <strong>{{ class.name }}</strong>
+                      <small class="text-muted d-block">{{ class.students|length }} طالب</small>
+                    </div>
+                    <a href="{{ url_for('admin.classes_list') }}" class="btn btn-outline-primary btn-sm">عرض</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-info text-center m-3" role="alert">
+                لا توجد صفوف دراسية حالياً.
+              </div>
+            {% endif %}
+          </div>
+          <div class="card-footer text-center">
+            <a href="{{ url_for('admin.classes_list') }}" class="btn btn-secondary btn-sm">إدارة الصفوف</a>
+            <a href="{{ url_for('admin.add_class') }}" class="btn btn-primary btn-sm">إضافة صف</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

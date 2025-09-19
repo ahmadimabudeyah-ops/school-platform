@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">نتائجي</h2>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="bi bi-bar-chart-line"></i> نتائج الاختبارات</h4>
+          </div>
+          <div class="card-body">
+            {% if exam_results %}
+              <ul class="list-group list-group-flush">
+                {% for result in exam_results %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <strong>{{ result.exam.title }}</strong>
+                    <span class="badge bg-primary fs-6">
+                        {% if result.exam.total_points > 0 %}
+                            {{ "%.2f"|format((result.score / result.exam.total_points) * 100) }}%
+                        {% else %}
+                            0.00%
+                        {% endif %}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-info" role="alert">
+                لم يتم تقديم أي اختبارات بعد.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-warning text-white">
+            <h4 class="mb-0"><i class="bi bi-folder-check"></i> نتائج الواجبات</h4>
+          </div>
+          <div class="card-body">
+            {% if results_for_assignments %}
+              <ul class="list-group list-group-flush">
+                {% for item in results_for_assignments %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <strong>{{ item.assignment.title }}</strong>
+                    {% if item.grade is not none and item.grade > 0 %}
+                      <span class="badge bg-success fs-6">الدرجة: {{ item.grade }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary fs-6">بانتظار التقييم</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="alert alert-warning" role="alert">
+                لم يتم تقديم أي واجبات بعد.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

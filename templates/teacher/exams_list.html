@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">قائمة اختباراتي</h2>
+
+    <div class="mb-4">
+      <a href="{{ url_for('teacher.create_exam') }}" class="btn btn-primary"><i class="bi bi-file-earmark-plus"></i> إنشاء اختبار جديد</a>
+    </div>
+
+    {% if exams %}
+      <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">عنوان الاختبار</th>
+              <th scope="col">المادة</th>
+              <th scope="col">وقت البدء</th>
+              <th scope="col">وقت الانتهاء</th>
+              <th scope="col">الحالة</th>
+              <th scope="col">عدد الأسئلة</th>
+              <th scope="col">النقاط الكلية</th>
+              <th scope="col">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for exam in exams %}
+              <tr>
+                <th scope="row">{{ loop.index }}</th>
+                <td>{{ exam.title }}</td>
+                <td>{{ exam.subject.name }}</td>
+                <td>{{ exam.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                  {% if exam.is_active %}
+                    <span class="badge bg-success">مفعل</span>
+                  {% else %}
+                    <span class="badge bg-danger">غير مفعل</span>
+                  {% endif %}
+                </td>
+                <td>{{ exam.questions|length }}</td>
+                <td>{{ exam.total_points }}</td>
+                <td>
+<a href="{{ url_for('teacher.view_subject_results', subject_id=exam.subject.id) }}" class="btn btn-sm btn-info me-1" title="عرض نتائج المادة">عرض النتائج</a>
+                  <a href="{{ url_for('teacher.add_question', exam_id=exam.id) }}" class="btn btn-sm btn-info me-1" title="إضافة/مراجعة الأسئلة"><i class="bi bi-plus-circle"></i> أسئلة</a>
+                  <a href="{{ url_for('teacher.edit_exam', exam_id=exam.id) }}" class="btn btn-sm btn-warning me-1" title="تعديل الاختبار"><i class="bi bi-pencil"></i></a>
+                  <form action="{{ url_for('teacher.delete_exam', exam_id=exam.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الاختبار؟');">
+                    <button type="submit" class="btn btn-sm btn-danger" title="حذف الاختبار"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info text-center" role="alert">
+        لا توجد اختبارات حتى الآن.
+        <p class="mb-0 mt-2"><a href="{{ url_for('teacher.create_exam') }}" class="alert-link">أنشئ اختبارًا جديدًا الآن!</a></p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

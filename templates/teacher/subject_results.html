@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">{{ title }}</h2>
+    <p class="text-muted">مادة: <strong>{{ subject.name }}</strong></p>
+
+    {% if not exam_results_by_exam %}
+        <div class="alert alert-info" role="alert">
+            لا توجد نتائج اختبارات لعرضها لهذه المادة.
+        </div>
+    {% else %}
+        {% for exam, results in exam_results_by_exam.items() %}
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ exam.title }} (مجموع النقاط: {{ exam.total_points }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if not results %}
+                        <p class="text-muted">لا يوجد طلاب قدموا هذا الاختبار بعد.</p>
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped align-middle text-center">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>اسم الطالب</th>
+                                        <th>الدرجة</th>
+                                        <th>النسبة المئوية</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in results %}
+                                        <tr>
+                                            <td>{{ result.student.username }}</td>
+                                            <td>{{ result.score }} / {{ exam.total_points }}</td>
+                                            <td>
+                                                {% if exam.total_points > 0 %}
+                                                    {{ "%.2f"|format((result.score / exam.total_points) * 100) }}%
+                                                {% else %}
+                                                    0%
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-secondary mt-4">العودة إلى لوحة التحكم</a>
+</div>
+{% endblock %}

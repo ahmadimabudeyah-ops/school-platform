@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">الاختبار: <span class="text-primary">{{ exam.title }}</span></h2>
+    <p class="text-muted">المادة: {{ exam.subject.name }}</p>
+    <p class="text-muted">وقت البدء: {{ exam.start_time.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p class="text-muted">وقت الانتهاء: {{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}</p>
+    <hr>
+
+    {% if questions %}
+      <form method="POST">
+        {{ form.hidden_tag() }} {# هذا السطر يضيف حقل CSRF المخفي #}
+
+        {% for q in questions %}
+          <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">السؤال رقم {{ loop.index }}:</h5>
+              <p class="card-text"><strong>{{ q.text }}</strong></p>
+              
+              {% if q.question_type == 'multiple_choice' %}
+                <div class="mb-3">
+                  {% for choice in q.choices %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="{{ q.id }}" id="choice-{{ q.id }}-{{ loop.index }}" value="{{ choice.text }}">
+                      <label class="form-check-label" for="choice-{{ q.id }}-{{ loop.index }}">{{ choice.text }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% elif q.question_type == 'short_answer' %}
+                <div class="mb-3">
+                  <label for="answer_{{ q.id }}" class="form-label">إجابتك:</label>
+                  <input type="text" class="form-control" id="answer_{{ q.id }}" name="{{ q.id }}" required>
+                </div>
+              {% elif q.question_type == 'true_false' %}
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="{{ q.id }}" id="true_{{ q.id }}" value="true">
+                    <label class="form-check-label" for="true_{{ q.id }}">صحيح</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="{{ q.id }}" id="false_{{ q.id }}" value="false">
+                    <label class="form-check-label" for="false_{{ q.id }}">خطأ</label>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary btn-lg">تقديم الاختبار</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        لا توجد أسئلة في هذا الاختبار حالياً.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

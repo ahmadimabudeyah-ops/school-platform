@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2 class="mb-4">إضافة مهمة للواجب: <span class="text-primary">{{ assignment.title }}</span></h2>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-success text-white">
+        <h4><i class="bi bi-clipboard-plus"></i> إضافة مهمة جديدة</h4>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.task_type.label(class="form-label") }}
+            {{ form.task_type(class="form-select") }}
+            {% for error in form.task_type.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.instructions.label(class="form-label") }}
+            {{ form.instructions(class="form-control", rows="3", placeholder="تعليمات المهمة للطلاب") }}
+            {% for error in form.instructions.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="d-grid gap-2 mt-4">
+            {{ form.submit(class="btn btn-success btn-lg") }}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <hr class="my-5">
+
+    <h3 class="mb-3">المهام الحالية في الواجب:</h3>
+    {% if tasks %}
+      <div class="list-group">
+        {% for task in tasks %}
+          <div class="list-group-item list-group-item-action flex-column align-items-start mb-3">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">المهمة رقم {{ loop.index }}:</h5>
+              <small class="badge bg-info text-dark">{{ task.task_type }}</small>
+            </div>
+            <p class="mb-1">{{ task.instructions }}</p>
+            <div class="d-flex justify-content-end mt-2">
+                <a href="{{ url_for('teacher.edit_task', task_id=task.id) }}" class="btn btn-sm btn-warning me-2" title="تعديل المهمة"><i class="bi bi-pencil"></i></a>
+                <form action="{{ url_for('teacher.delete_task', task_id=task.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه المهمة؟');">
+                    <button type="submit" class="btn btn-sm btn-danger" title="حذف المهمة"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        لا توجد مهام مضافة لهذا الواجب بعد.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
