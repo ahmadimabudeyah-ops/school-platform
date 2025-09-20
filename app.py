@@ -56,6 +56,14 @@ def create_app():
     except ImportError:
         pass
 
+    # طباعة رابط قاعدة البيانات للتdebug
+    print(f"🔗 رابط قاعدة البيانات: {app.config.get('SQLALCHEMY_DATABASE_URI', 'غير محدد')}")
+    
+    # إجبار استخدام psycopg2 لPostgreSQL
+    if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('postgresql://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgresql://', 'postgresql+psycopg2://', 1)
+        print(f"🔧 تم تحديث الرابط إلى: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
     # DB + Login + CSRF
     db.init_app(app)
     login_manager.init_app(app)
@@ -91,6 +99,12 @@ def create_app():
     # تهيئة قاعدة البيانات وإنشاء مدير افتراضي
     with app.app_context():
         try:
+            # اختبار الاتصال بقاعدة البيانات أولاً
+            connection = db.engine.connect()
+            connection.close()
+            print("✅ تم الاتصال بقاعدة البيانات بنجاح")
+            
+            # إنشاء الجداول
             db.create_all()
             print("✅ تم إنشاء الجداول بنجاح")
             
@@ -109,6 +123,7 @@ def create_app():
                 
         except Exception as e:
             print(f"❌ خطأ في تهيئة قاعدة البيانات: {str(e)}")
+            print(f"📝 رابط قاعدة البيانات المستخدم: {app.config['SQLALCHEMY_DATABASE_URI']}")
             # في حالة الخطأ، لا توقف التطبيق ولكن سجل الخطأ فقط
 
     return app
