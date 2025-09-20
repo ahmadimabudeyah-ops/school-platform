@@ -10,14 +10,14 @@ class Config:
         'postgresql://school_platform_db_user:bHoBASYJNXezYvDFmQOUuhXWuM266TX0@dpg-d36sddemcj7s73dustb0-a/school_platform_db'
     
     # تحويل postgres:// إلى postgresql:// إذا لزم الأمر
-    if DATABASE_URL.startswith('postgres://'):
+    if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
     # استخدام المحرك بشكل صريح
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     
     # إجبار SQLAlchemy على استخدام psycopg2
-    if 'postgresql' in SQLALCHEMY_DATABASE_URI:
+    if SQLALCHEMY_DATABASE_URI and 'postgresql' in SQLALCHEMY_DATABASE_URI:
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgresql://', 'postgresql+psycopg2://', 1)
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False

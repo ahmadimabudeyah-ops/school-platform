@@ -56,14 +56,17 @@ def create_app():
     except ImportError:
         pass
 
+    # إجبار استخدام PostgreSQL و psycopg2
+    if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('postgresql://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgresql://', 'postgresql+psycopg2://', 1)
+    
+    # إذا كان الرابط لا يزال يشير إلى MySQL، استخدم الرابط من Config مباشرة
+    if 'mysql' in app.config.get('SQLALCHEMY_DATABASE_URI', ''):
+        app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
+
     # طباعة رابط قاعدة البيانات للتdebug
     print(f"🔗 رابط قاعدة البيانات: {app.config.get('SQLALCHEMY_DATABASE_URI', 'غير محدد')}")
     
-    # إجبار استخدام psycopg2 لPostgreSQL
-    if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('postgresql://'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgresql://', 'postgresql+psycopg2://', 1)
-        print(f"🔧 تم تحديث الرابط إلى: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
     # DB + Login + CSRF
     db.init_app(app)
     login_manager.init_app(app)
