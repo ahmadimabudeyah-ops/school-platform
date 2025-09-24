@@ -256,20 +256,17 @@ def edit_question(question_id):
 
     form = QuestionForm(obj=question)
 
-    if question.question_type == 'multiple_choice':
+    # إصلاح: معالجة آمنة للخيارات
+    if question.question_type == 'multiple_choice' and question.choices:
+        # تهيئة جميع الخيارات بقيم فارغة أولاً
+        choice_fields = [form.choice1, form.choice2, form.choice3, form.choice4]
+        correct_fields = [form.is_correct1, form.is_correct2, form.is_correct3, form.is_correct4]
+        
+        # تعبئة البيانات فقط للخيارات الموجودة
         for i, choice in enumerate(question.choices):
-            if i == 0:
-                form.choice1.data = choice.text
-                form.is_correct1.data = choice.is_correct
-            elif i == 1:
-                form.choice2.data = choice.text
-                form.is_correct2.data = choice.is_correct
-            elif i == 2:
-                form.choice3.data = choice.text
-                form.is_correct3.data = choice.is_correct
-            elif i == 3:
-                form.choice4.data = choice.text
-                form.is_correct4.data = choice.is_correct
+            if i < 4:  # التأكد من عدم تجاوز الحد الأقصى للخيارات
+                choice_fields[i].data = choice.text
+                correct_fields[i].data = choice.is_correct
 
     if form.validate_on_submit():
         question.question_type = form.question_type.data
@@ -278,16 +275,16 @@ def edit_question(question_id):
 
         if form.question_type.data in ['short_answer', 'true_false']:
             question.correct_answer = form.correct_answer.data
+            # حذف جميع الخيارات القديمة
             for choice in question.choices:
                 db.session.delete(choice)
-            question.choices = []
         else:
             question.correct_answer = None
-            # Delete old choices and add new ones
+            # حذف الخيارات القديمة
             for choice in question.choices:
                 db.session.delete(choice)
-            db.session.flush()
-
+            
+            # إضافة الخيارات الجديدة
             choices_data = [
                 (form.choice1.data, form.is_correct1.data),
                 (form.choice2.data, form.is_correct2.data),
@@ -295,11 +292,13 @@ def edit_question(question_id):
                 (form.choice4.data, form.is_correct4.data)
             ]
             for text, is_correct in choices_data:
-                if text:
+                if text and text.strip():  # تجاهل الخيارات الفارغة
                     choice = Choice(question_id=question.id, text=text, is_correct=is_correct)
                     db.session.add(choice)
 
         db.session.commit()
+        
+        # تحديث النقاط الكلية للاختبار
         exam.total_points = sum(q.points for q in exam.questions)
         db.session.commit()
 

@@ -297,6 +297,8 @@ def handle_send_message(data):
         'timestamp': datetime.utcnow().isoformat()
     }, room=session_id)
 
-
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # احصل على البورت من متغير البيئة أو استخدم 5000 افتراضي
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 Starting server on port {port}")
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)
