@@ -279,17 +279,17 @@ def edit_question(question_id):
 
             # معالجة الإجابة الصحيحة بناءً على نوع السؤال
             if question.question_type == 'multiple_choice':
-                question.correct_answer = None  # لا يوجد إجابة نصية للاختيار من متعدد
+                question.correct_answer = None
                 
                 # حذف الخيارات القديمة
                 Choice.query.filter_by(question_id=question.id).delete()
                 
-                # إضافة الخيارات الجديدة - إصلاح هنا
+                # إصلاح: معالجة قيم Boolean بشكل صحيح من request
                 choices_data = [
-                    (form.choice1.data, form.is_correct1.data if form.is_correct1.data else False),
-                    (form.choice2.data, form.is_correct2.data if form.is_correct2.data else False),
-                    (form.choice3.data, form.is_correct3.data if form.is_correct3.data else False),
-                    (form.choice4.data, form.is_correct4.data if form.is_correct4.data else False)
+                    (form.choice1.data, bool(request.form.get('is_correct1'))),
+                    (form.choice2.data, bool(request.form.get('is_correct2'))),
+                    (form.choice3.data, bool(request.form.get('is_correct3'))),
+                    (form.choice4.data, bool(request.form.get('is_correct4')))
                 ]
                 
                 for text, is_correct in choices_data:
@@ -301,7 +301,7 @@ def edit_question(question_id):
                         )
                         db.session.add(choice)
             else:
-                # للأسئلة النصية وصح/خطأ، حفظ الإجابة الصحيحة وحذف الخيارات
+                # للأسئلة النصية وصح/خطأ
                 question.correct_answer = form.correct_answer.data
                 Choice.query.filter_by(question_id=question.id).delete()
 
@@ -315,7 +315,7 @@ def edit_question(question_id):
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error editing question: {e}")
-            flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
+            flash(f'حدث خطأ غير متوقع: {str(e)}', 'danger')
 
     return render_template('teacher/edit_question.html', form=form, question=question, exam=exam)
     
