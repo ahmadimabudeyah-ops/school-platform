@@ -277,7 +277,7 @@ def edit_question(question_id):
             if question.question_type != 'multiple_choice':
                 question.correct_answer = form.correct_answer.data
             else:
-                question.correct_answer = ''
+                question.correct_answer = None
 
             if question.question_type == 'multiple_choice':
                 Choice.query.filter_by(question_id=question.id).delete()
