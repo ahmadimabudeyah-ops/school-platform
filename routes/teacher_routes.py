@@ -244,6 +244,7 @@ def add_question(exam_id):
 
 
 @teacher_bp.route('/edit_question/<int:question_id>', methods=['GET', 'POST'])
+@login_required
 def edit_question(question_id):
     """
     Route to edit an existing question.
@@ -256,18 +257,12 @@ def edit_question(question_id):
             flash('You are not authorized to edit questions for this exam.', 'danger')
             return redirect(url_for('teacher.dashboard'))
 
-        form = QuestionForm()
+        form = QuestionForm(obj=question)  # 🔥 تغيير رئيسي: استخدام obj=question لملء النموذج
 
         if request.method == 'GET':
-            # تعبئة البيانات الأساسية للسؤال
-            form.question_type.data = question.question_type
-            form.text.data = question.text
-            form.points.data = question.points
-            form.correct_answer.data = question.correct_answer
-
-            # تعبئة خيارات الاختيار من متعدد إذا كان النوع مناسب
+            # تعبئة خيارات الاختيار من متعدد يدوياً لضمان الترتيب
             if question.question_type == 'multiple_choice':
-                choices = sorted(question.choices, key=lambda x: x.id)  # ترتيب حسب ID
+                choices = sorted(question.choices, key=lambda x: x.id)
                 
                 # تعبئة الحقول بالخيارات المرتبة
                 if len(choices) > 0:
@@ -282,6 +277,7 @@ def edit_question(question_id):
                 if len(choices) > 3:
                     form.choice4.data = choices[3].text
                     form.is_correct4.data = choices[3].is_correct
+            # لا حاجة لتعبئة الحقول الأخرى يدوياً بعد الآن، `obj=question` يتكفل بذلك.
 
         if form.validate_on_submit():
             # تحديث البيانات الأساسية
@@ -295,7 +291,7 @@ def edit_question(question_id):
                 for choice in question.choices:
                     db.session.delete(choice)
                 
-                question.correct_answer = None  # إلغاء الإجابة النصية
+                question.correct_answer = None
                 
                 # إضافة الخيارات الجديدة مع التحقق من عدم الفراغ
                 choices_data = [
@@ -306,7 +302,7 @@ def edit_question(question_id):
                 ]
                 
                 for text, is_correct in choices_data:
-                    if text and text.strip():  # تجاهل الخيارات الفارغة
+                    if text and text.strip():
                         choice = Choice(
                             question_id=question.id, 
                             text=text.strip(), 
@@ -314,7 +310,7 @@ def edit_question(question_id):
                         )
                         db.session.add(choice)
             else:
-                # للأنواع الأخرى (إجابة قصيرة، صح/خطأ)
+                # للأنواع الأخرى
                 question.correct_answer = form.correct_answer.data
                 # حذف أي خيارات موجودة مسبقاً
                 for choice in question.choices:
