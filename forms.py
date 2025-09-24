@@ -153,6 +153,7 @@ class QuestionForm(FlaskForm):
     choice4 = StringField('الخيار 4', validators=[Optional()])
     is_correct4 = BooleanField('صحيح', false_values=(False, 'false', '0', ''))
 
+
     submit = SubmitField('إضافة السؤال')
 
     def validate(self):
