@@ -1,3 +1,4 @@
+# teacher_routes.py
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import current_user, login_required
 from models import (
@@ -8,7 +9,7 @@ from forms import ExamForm, QuestionForm, AssignmentForm, AssignmentTaskForm, Gr
 from datetime import datetime, timedelta
 import os
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload  # تحسين تحميل العلاقات
+from sqlalchemy.orm import joinedload
 
 # Create Blueprint for teacher routes
 teacher_bp = Blueprint('teacher', __name__)
@@ -204,7 +205,7 @@ def add_question(exam_id):
         return redirect(url_for('teacher.dashboard'))
 
     form = QuestionForm()
-    if request.method == 'POST' and form.validate():
+    if form.validate_on_submit():
         new_question = Question(
             exam_id=exam.id,
             question_type=form.question_type.data,
@@ -244,23 +245,30 @@ def add_question(exam_id):
 
 @teacher_bp.route('/edit_question/<int:question_id>', methods=['GET', 'POST'])
 def edit_question(question_id):
+    """
+    Route to edit an existing question.
+    """
     question = Question.query.get_or_404(question_id)
     exam = question.exam
+    
     if exam.teacher_id != current_user.id:
         flash('You are not authorized to edit this question.', 'danger')
         return redirect(url_for('teacher.dashboard'))
 
-    form = QuestionForm()  
-
+    form = QuestionForm()
+    
     if request.method == 'GET':
+        # تعبئة البيانات الحالية في النموذج
         form.question_type.data = question.question_type
         form.text.data = question.text
         form.points.data = question.points
+        
         if question.question_type != 'multiple_choice':
             form.correct_answer.data = question.correct_answer
-
-        choices = question.choices
-        if choices:
+        
+        # تعبئة خيارات الاختيار من متعدد إذا كانت موجودة
+        if question.question_type == 'multiple_choice' and question.choices:
+            choices = question.choices
             for i, choice in enumerate(choices):
                 if i == 0:
                     form.choice1.data = choice.text
@@ -277,47 +285,56 @@ def edit_question(question_id):
 
     if form.validate_on_submit():
         try:
+            # تحديث بيانات السؤال الأساسية
             question.question_type = form.question_type.data
             question.text = form.text.data
             question.points = form.points.data
+            
+            # التعامل مع الإجابة الصحيحة بناءً على نوع السؤال
             if question.question_type != 'multiple_choice':
                 question.correct_answer = form.correct_answer.data
             else:
-                question.correct_answer = ''
-
+                question.correct_answer = None  # لا يوجد إجابة نصية للاختيار من متعدد
+            
+            # التعامل مع خيارات الاختيار من متعدد
             if question.question_type == 'multiple_choice':
-                # حذف الخيارات القديمة قبل إضافة الجديدة
+                # حذف الخيارات القديمة
                 Choice.query.filter_by(question_id=question.id).delete()
                 
-                # إضافة الخيارات الجديدة من النموذج
+                # إضافة الخيارات الجديدة
                 choices_data = [
-                    {'text': form.choice1.data, 'is_correct': form.is_correct1.data},
-                    {'text': form.choice2.data, 'is_correct': form.is_correct2.data},
-                    {'text': form.choice3.data, 'is_correct': form.is_correct3.data},
-                    {'text': form.choice4.data, 'is_correct': form.is_correct4.data},
+                    (form.choice1.data, form.is_correct1.data),
+                    (form.choice2.data, form.is_correct2.data),
+                    (form.choice3.data, form.is_correct3.data),
+                    (form.choice4.data, form.is_correct4.data)
                 ]
-                for choice_data in choices_data:
-                    if choice_data['text']:
-                        new_choice = Choice(
+                
+                for text, is_correct in choices_data:
+                    if text and text.strip():  # التأكد من أن النص غير فارغ
+                        choice = Choice(
                             question_id=question.id,
-                            text=choice_data['text'],
-                            is_correct=choice_data['is_correct']
+                            text=text.strip(),
+                            is_correct=is_correct
                         )
-                        db.session.add(new_choice)
-
-            exam.total_points = sum(q.points for q in exam.questions)
-            db.session.commit()
+                        db.session.add(choice)
+            else:
+                # إذا لم يكن اختيار من متعدد، احذف أي خيارات قديمة
+                Choice.query.filter_by(question_id=question.id).delete()
             
-            flash('تم تحديث السؤال بنجاح! ', 'success')
-            return redirect(url_for('teacher.view_exam_questions', exam_id=exam.id))
-
+            # تحديث النقاط الإجمالية للاختبار
+            exam.total_points = sum(q.points for q in exam.questions)
+            
+            db.session.commit()
+            flash('تم تحديث السؤال بنجاح!', 'success')
+            return redirect(url_for('teacher.add_question', exam_id=exam.id))
+            
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error editing question: {e}")
             flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
 
     return render_template('teacher/edit_question.html', form=form, question=question, exam=exam)
-    
+
 @teacher_bp.route('/delete_question/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
     """
@@ -332,6 +349,7 @@ def delete_question(question_id):
 
     db.session.delete(question)
     db.session.commit()
+    
     # Recalculate total points for the exam
     exam.total_points = sum(q.points for q in exam.questions)
     db.session.commit()
@@ -361,8 +379,7 @@ def create_assignment():
             subject_id=form.subject.data,
             teacher_id=current_user.id,
             due_date=form.due_date.data,
-                        class_id=form.class_id.data
-
+            class_id=form.class_id.data
         )
         db.session.add(new_assignment)
         db.session.commit()
@@ -668,5 +685,4 @@ def end_live_session(session_id):
     db.session.commit()
 
     flash('Live session ended successfully.', 'success')
-    # ✅ توجيه إلى قائمة الجلسات بدل صفحة البث غير النشطة
     return redirect(url_for('teacher.live_sessions'))
