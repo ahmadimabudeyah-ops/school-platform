@@ -247,42 +247,48 @@ def edit_question(question_id):
     """
     Route to edit an existing question.
     """
-    question = Question.query.get_or_404(question_id)
-    exam = Exam.query.get_or_404(question.exam_id)
+    try:
+        question = Question.query.get_or_404(question_id)
+        exam = Exam.query.get_or_404(question.exam_id)
 
-    if exam.teacher_id != current_user.id:
-        flash('You are not authorized to edit questions for this exam.', 'danger')
-        return redirect(url_for('teacher.dashboard'))
+        if exam.teacher_id != current_user.id:
+            flash('You are not authorized to edit questions for this exam.', 'danger')
+            return redirect(url_for('teacher.dashboard'))
 
-    form = QuestionForm(obj=question)
+        form = QuestionForm(obj=question)
 
-    # معالجة آمنة للخيارات - إصلاح محتمل
-    if request.method == 'GET':
-        if question.question_type == 'multiple_choice' and question.choices:
-            # تهيئة جميع الخيارات بقيم فارغة أولاً
-            choice_fields = [form.choice1, form.choice2, form.choice3, form.choice4]
-            correct_fields = [form.is_correct1, form.is_correct2, form.is_correct3, form.is_correct4]
-            
-            # تعبئة البيانات فقط للخيارات الموجودة
-            for i, choice in enumerate(question.choices):
-                if i < 4:  # التأكد من عدم تجاوز الحد الأقصى للخيارات
-                    choice_fields[i].data = choice.text
-                    correct_fields[i].data = choice.is_correct
+        if request.method == 'GET':
+            form.question_type.data = question.question_type
+            form.text.data = question.text
+            form.points.data = question.points
+            form.correct_answer.data = question.correct_answer
 
-    if form.validate_on_submit():
-        try:
+     
+            if question.question_type == 'multiple_choice':
+                choices = question.choices
+                if choices:
+                  
+                    choice_fields = [form.choice1, form.choice2, form.choice3, form.choice4]
+                    correct_fields = [form.is_correct1, form.is_correct2, form.is_correct3, form.is_correct4]
+                    
+                    for i, choice in enumerate(choices):
+                        if i < 4:  
+                            choice_fields[i].data = choice.text
+                            correct_fields[i].data = choice.is_correct
+
+     
+        if form.validate_on_submit():
+       
             question.question_type = form.question_type.data
             question.text = form.text.data
             question.points = form.points.data
 
-            # حذف الخيارات القديمة أولاً
-            for choice in question.choices:
-                db.session.delete(choice)
-
-            if form.question_type.data in ['short_answer', 'true_false']:
-                question.correct_answer = form.correct_answer.data
-            else:  # multiple_choice
-                question.correct_answer = None
+          
+            if question.question_type == 'multiple_choice':
+                for choice in question.choices[:]:  
+                    db.session.delete(choice)
+                
+                question.correct_answer = None  
                 
                 # إضافة الخيارات الجديدة
                 choices_data = [
@@ -296,10 +302,16 @@ def edit_question(question_id):
                     if text and text.strip():  # تجاهل الخيارات الفارغة
                         choice = Choice(
                             question_id=question.id, 
-                            text=text, 
+                            text=text.strip(), 
                             is_correct=is_correct
                         )
                         db.session.add(choice)
+            else:
+                # للأنواع الأخرى (إجابة قصيرة، صح/خطأ)
+                question.correct_answer = form.correct_answer.data
+                # حذف أي خيارات موجودة مسبقاً
+                for choice in question.choices[:]:
+                    db.session.delete(choice)
 
             db.session.commit()
             
@@ -307,15 +319,16 @@ def edit_question(question_id):
             exam.total_points = sum(q.points for q in exam.questions)
             db.session.commit()
 
-            flash('Question updated successfully.', 'success')
+            flash('تم تحديث السؤال بنجاح.', 'success')
             return redirect(url_for('teacher.add_question', exam_id=exam.id))
             
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error updating question: {str(e)}")
-            flash('حدث خطأ أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
+        return render_template('teacher/edit_question.html', form=form, exam=exam, question=question)
 
-    return render_template('teacher/edit_question.html', form=form, exam=exam, question=question)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating question {question_id}: {str(e)}")
+        flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
 
 @teacher_bp.route('/delete_question/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
