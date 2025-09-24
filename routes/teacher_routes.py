@@ -242,6 +242,7 @@ def add_question(exam_id):
     questions = Question.query.filter_by(exam_id=exam.id).all()
     return render_template('teacher/add_question.html', form=form, exam=exam, questions=questions)
 
+
 @teacher_bp.route('/edit_question/<int:question_id>', methods=['GET', 'POST'])
 def edit_question(question_id):
     """
@@ -255,42 +256,48 @@ def edit_question(question_id):
             flash('You are not authorized to edit questions for this exam.', 'danger')
             return redirect(url_for('teacher.dashboard'))
 
-        form = QuestionForm(obj=question)
+        form = QuestionForm()
 
         if request.method == 'GET':
+            # تعبئة البيانات الأساسية للسؤال
             form.question_type.data = question.question_type
             form.text.data = question.text
             form.points.data = question.points
             form.correct_answer.data = question.correct_answer
 
-     
+            # تعبئة خيارات الاختيار من متعدد إذا كان النوع مناسب
             if question.question_type == 'multiple_choice':
-                choices = question.choices
-                if choices:
-                  
-                    choice_fields = [form.choice1, form.choice2, form.choice3, form.choice4]
-                    correct_fields = [form.is_correct1, form.is_correct2, form.is_correct3, form.is_correct4]
-                    
-                    for i, choice in enumerate(choices):
-                        if i < 4:  
-                            choice_fields[i].data = choice.text
-                            correct_fields[i].data = choice.is_correct
+                choices = sorted(question.choices, key=lambda x: x.id)  # ترتيب حسب ID
+                
+                # تعبئة الحقول بالخيارات المرتبة
+                if len(choices) > 0:
+                    form.choice1.data = choices[0].text
+                    form.is_correct1.data = choices[0].is_correct
+                if len(choices) > 1:
+                    form.choice2.data = choices[1].text
+                    form.is_correct2.data = choices[1].is_correct
+                if len(choices) > 2:
+                    form.choice3.data = choices[2].text
+                    form.is_correct3.data = choices[2].is_correct
+                if len(choices) > 3:
+                    form.choice4.data = choices[3].text
+                    form.is_correct4.data = choices[3].is_correct
 
-     
         if form.validate_on_submit():
-       
+            # تحديث البيانات الأساسية
             question.question_type = form.question_type.data
             question.text = form.text.data
             question.points = form.points.data
 
-          
+            # معالجة حسب نوع السؤال
             if question.question_type == 'multiple_choice':
-                for choice in question.choices[:]:  
+                # حذف الخيارات القديمة
+                for choice in question.choices:
                     db.session.delete(choice)
                 
-                question.correct_answer = None  
+                question.correct_answer = None  # إلغاء الإجابة النصية
                 
-                # إضافة الخيارات الجديدة
+                # إضافة الخيارات الجديدة مع التحقق من عدم الفراغ
                 choices_data = [
                     (form.choice1.data, form.is_correct1.data),
                     (form.choice2.data, form.is_correct2.data),
@@ -310,7 +317,7 @@ def edit_question(question_id):
                 # للأنواع الأخرى (إجابة قصيرة، صح/خطأ)
                 question.correct_answer = form.correct_answer.data
                 # حذف أي خيارات موجودة مسبقاً
-                for choice in question.choices[:]:
+                for choice in question.choices:
                     db.session.delete(choice)
 
             db.session.commit()
@@ -329,7 +336,7 @@ def edit_question(question_id):
         current_app.logger.error(f"Error updating question {question_id}: {str(e)}")
         flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-
+    
 @teacher_bp.route('/delete_question/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
     """
