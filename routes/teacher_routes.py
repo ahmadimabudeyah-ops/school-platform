@@ -145,7 +145,7 @@ def create_exam():
             end_time=form.end_time.data,
             is_active=form.is_active.data,
             total_points=0.0,
-            class_id=form.class_id.data
+            class_id=form.class_id.data 
         )
         db.session.add(new_exam)
         db.session.commit()
@@ -162,6 +162,7 @@ def edit_exam(exam_id):
     if exam.teacher_id != current_user.id:
         flash('You are not authorized to edit this exam.', 'danger')
         return redirect(url_for('teacher.dashboard'))
+
     form = ExamForm(obj=exam)
     if form.validate_on_submit():
         exam.title = form.title.data
@@ -185,6 +186,7 @@ def delete_exam(exam_id):
     if exam.teacher_id != current_user.id:
         flash('You are not authorized to delete this exam.', 'danger')
         return redirect(url_for('teacher.dashboard'))
+
     db.session.delete(exam)
     db.session.commit()
     flash('Exam deleted successfully.', 'success')
@@ -200,179 +202,144 @@ def add_question(exam_id):
     if exam.teacher_id != current_user.id:
         flash('You are not authorized to add questions to this exam.', 'danger')
         return redirect(url_for('teacher.dashboard'))
+
     form = QuestionForm()
-    if form.validate_on_submit():
-        try:
-            new_question = Question(
-                text=form.text.data,
-                question_type=form.question_type.data,
-                points=form.points.data,
-                exam_id=exam.id
-            )
-            db.session.add(new_question)
+    if request.method == 'POST' and form.validate():
+        new_question = Question(
+            exam_id=exam.id,
+            question_type=form.question_type.data,
+            text=form.text.data,
+            correct_answer=form.correct_answer.data if form.question_type.data in ['short_answer', 'true_false'] else None,
+            points=form.points.data
+        )
+        db.session.add(new_question)
+        db.session.commit()
 
-            if new_question.question_type == 'multiple_choice':
-                correct_choices = request.form.getlist('correct_choices')
-                choices = [form.choice1.data, form.choice2.data, form.choice3.data, form.choice4.data]
-                is_correct = [
-                    'choice1' in correct_choices,
-                    'choice2' in correct_choices,
-                    'choice3' in correct_choices,
-                    'choice4' in correct_choices
-                ]
-
-                # Update exam's total points
-                exam.total_points += new_question.points
-                db.session.add(exam)
-
-                for i, choice_text in enumerate(choices):
-                    new_choice = Choice(
-                        text=choice_text,
-                        is_correct=is_correct[i],
-                        question=new_question
+        if form.question_type.data == 'multiple_choice':
+            choices_data = [
+                (form.choice1.data, form.is_correct1.data),
+                (form.choice2.data, form.is_correct2.data),
+                (form.choice3.data, form.is_correct3.data),
+                (form.choice4.data, form.is_correct4.data)
+            ]
+            for text, is_correct in choices_data:
+                if text:
+                    choice = Choice(
+                        question_id=new_question.id,
+                        text=text,
+                        is_correct=is_correct
                     )
-                    db.session.add(new_choice)
-            else: # short_answer and true_false
-                # Update exam's total points
-                exam.total_points += new_question.points
-                db.session.add(exam)
-
-                correct_answer_text = form.correct_answer.data
-                new_choice = Choice(
-                    text=correct_answer_text,
-                    is_correct=True,
-                    question=new_question
-                )
-                db.session.add(new_choice)
-            
+                    db.session.add(choice)
             db.session.commit()
-            flash('Question added successfully!', 'success')
-            return redirect(url_for('teacher.add_question', exam_id=exam.id))
 
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error adding question: {str(e)}")
-            flash(f'An error occurred: {str(e)}', 'danger')
-            return redirect(url_for('teacher.add_question', exam_id=exam.id))
-    
-    return render_template('teacher/add_question.html', form=form, exam=exam)
+        # Update total points for the exam
+        exam.total_points = sum(q.points for q in exam.questions)
+        db.session.commit()
+
+        flash('Question added successfully.', 'success')
+        return redirect(url_for('teacher.add_question', exam_id=exam.id))
+
+    questions = Question.query.filter_by(exam_id=exam.id).all()
+    return render_template('teacher/add_question.html', form=form, exam=exam, questions=questions)
 
 @teacher_bp.route('/edit_question/<int:question_id>', methods=['GET', 'POST'])
 def edit_question(question_id):
-    """
-    Route to edit an existing question.
-    """
     question = Question.query.get_or_404(question_id)
-    if question.exam.teacher_id != current_user.id:
+    exam = question.exam
+    if exam.teacher_id != current_user.id:
         flash('You are not authorized to edit this question.', 'danger')
         return redirect(url_for('teacher.dashboard'))
 
-    form = QuestionForm(obj=question)
+    form = QuestionForm()  
+
+    if request.method == 'GET':
+        form.question_type.data = question.question_type
+        form.text.data = question.text
+        form.points.data = question.points
+        if question.question_type != 'multiple_choice':
+            form.correct_answer.data = question.correct_answer
+
+        choices = question.choices
+        if choices:
+            for i, choice in enumerate(choices):
+                if i == 0:
+                    form.choice1.data = choice.text
+                    form.is_correct1.data = choice.is_correct
+                elif i == 1:
+                    form.choice2.data = choice.text
+                    form.is_correct2.data = choice.is_correct
+                elif i == 2:
+                    form.choice3.data = choice.text
+                    form.is_correct3.data = choice.is_correct
+                elif i == 3:
+                    form.choice4.data = choice.text
+                    form.is_correct4.data = choice.is_correct
 
     if form.validate_on_submit():
         try:
-            # Update question attributes
-            question.text = form.text.data
             question.question_type = form.question_type.data
+            question.text = form.text.data
             question.points = form.points.data
-
-            # Delete existing choices and create new ones
-            for choice in question.choices:
-                db.session.delete(choice)
+            if question.question_type != 'multiple_choice':
+                question.correct_answer = form.correct_answer.data
+            else:
+                question.correct_answer = ''
 
             if question.question_type == 'multiple_choice':
-                correct_choices_form = request.form.getlist('correct_choices')
+                # حذف الخيارات القديمة قبل إضافة الجديدة
+                Choice.query.filter_by(question_id=question.id).delete()
                 
-                choice_data = {
-                    'choice1': form.choice1.data,
-                    'choice2': form.choice2.data,
-                    'choice3': form.choice3.data,
-                    'choice4': form.choice4.data
-                }
-                
-                for choice_field_name, choice_text in choice_data.items():
-                    is_correct = choice_field_name in correct_choices_form
-                    new_choice = Choice(
-                        text=choice_text,
-                        is_correct=is_correct,
-                        question=question
-                    )
-                    db.session.add(new_choice)
-            
-            else: # short_answer and true_false
-                correct_answer_text = form.correct_answer.data
-                new_choice = Choice(
-                    text=correct_answer_text,
-                    is_correct=True,
-                    question=question
-                )
-                db.session.add(new_choice)
-            
+                # إضافة الخيارات الجديدة من النموذج
+                choices_data = [
+                    {'text': form.choice1.data, 'is_correct': form.is_correct1.data},
+                    {'text': form.choice2.data, 'is_correct': form.is_correct2.data},
+                    {'text': form.choice3.data, 'is_correct': form.is_correct3.data},
+                    {'text': form.choice4.data, 'is_correct': form.is_correct4.data},
+                ]
+                for choice_data in choices_data:
+                    if choice_data['text']:
+                        new_choice = Choice(
+                            question_id=question.id,
+                            text=choice_data['text'],
+                            is_correct=choice_data['is_correct']
+                        )
+                        db.session.add(new_choice)
+
+            exam.total_points = sum(q.points for q in exam.questions)
             db.session.commit()
-            flash('Question updated successfully!', 'success')
-            return redirect(url_for('teacher.view_exam_details', exam_id=question.exam_id))
+            
+            flash('تم تحديث السؤال بنجاح! ', 'success')
+            return redirect(url_for('teacher.view_exam_questions', exam_id=exam.id))
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error editing question: {str(e)}")
-            flash(f'An error occurred: {str(e)}', 'danger')
-            return redirect(url_for('teacher.edit_question', question_id=question.id))
+            current_app.logger.error(f"Error editing question: {e}")
+            flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
+
+    return render_template('teacher/edit_question.html', form=form, question=question, exam=exam)
     
-    # Pre-populate form on GET request
-    if request.method == 'GET':
-        form.text.data = question.text
-        form.question_type.data = question.question_type
-        form.points.data = question.points
-
-        if question.question_type == 'multiple_choice':
-            choices = question.choices
-            if len(choices) >= 1:
-                form.choice1.data = choices[0].text
-                form.is_correct1.data = choices[0].is_correct
-            if len(choices) >= 2:
-                form.choice2.data = choices[1].text
-                form.is_correct2.data = choices[1].is_correct
-            if len(choices) >= 3:
-                form.choice3.data = choices[2].text
-                form.is_correct3.data = choices[2].is_correct
-            if len(choices) >= 4:
-                form.choice4.data = choices[3].text
-                form.is_correct4.data = choices[3].is_correct
-        else:
-            correct_choice = next((c for c in question.choices if c.is_correct), None)
-            if correct_choice:
-                form.correct_answer.data = correct_choice.text
-
-    return render_template('teacher/edit_question.html', form=form, question=question)
-
 @teacher_bp.route('/delete_question/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
     """
-    Route to delete a question.
+    Route to delete a question from an exam.
     """
     question = Question.query.get_or_404(question_id)
-    if question.exam.teacher_id != current_user.id:
+    exam = Exam.query.get_or_404(question.exam_id)
+
+    if exam.teacher_id != current_user.id:
         flash('You are not authorized to delete this question.', 'danger')
         return redirect(url_for('teacher.dashboard'))
 
-    exam_id = question.exam_id
     db.session.delete(question)
     db.session.commit()
+    # Recalculate total points for the exam
+    exam.total_points = sum(q.points for q in exam.questions)
+    db.session.commit()
+
     flash('Question deleted successfully.', 'success')
-    return redirect(url_for('teacher.view_exam_details', exam_id=exam_id))
+    return redirect(url_for('teacher.add_question', exam_id=exam.id))
 
-@teacher_bp.route('/view_exam_details/<int:exam_id>')
-def view_exam_details(exam_id):
-    """
-    Page showing a list of questions for a specific exam.
-    """
-    exam = Exam.query.options(joinedload(Exam.questions).joinedload(Question.choices)).get_or_404(exam_id)
-    if exam.teacher_id != current_user.id:
-        flash('You are not authorized to view this exam.', 'danger')
-        return redirect(url_for('teacher.dashboard'))
-    return render_template('teacher/view_exam_details.html', exam=exam)
-
-# --- Assignments Management ---
+# --- Assignment Management ---
 @teacher_bp.route('/assignments_list')
 def assignments_list():
     """
@@ -380,7 +347,6 @@ def assignments_list():
     """
     assignments = Assignment.query.filter_by(teacher_id=current_user.id).all()
     return render_template('teacher/assignments_list.html', assignments=assignments)
-
 
 @teacher_bp.route('/create_assignment', methods=['GET', 'POST'])
 def create_assignment():
@@ -394,15 +360,14 @@ def create_assignment():
             description=form.description.data,
             subject_id=form.subject.data,
             teacher_id=current_user.id,
-            class_id=form.class_id.data,
             due_date=form.due_date.data,
-            is_active=form.is_active.data
+                        class_id=form.class_id.data
+
         )
         db.session.add(new_assignment)
         db.session.commit()
         flash('Assignment created successfully!', 'success')
         return redirect(url_for('teacher.assignments_list'))
-    
     return render_template('teacher/create_assignment.html', form=form)
 
 @teacher_bp.route('/edit_assignment/<int:assignment_id>', methods=['GET', 'POST'])
@@ -414,20 +379,17 @@ def edit_assignment(assignment_id):
     if assignment.teacher_id != current_user.id:
         flash('You are not authorized to edit this assignment.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
+
     form = AssignmentForm(obj=assignment)
     if form.validate_on_submit():
         assignment.title = form.title.data
         assignment.description = form.description.data
         assignment.subject_id = form.subject.data
-        assignment.class_id = form.class_id.data
         assignment.due_date = form.due_date.data
-        assignment.is_active = form.is_active.data
-        
+        assignment.class_id = form.class_id.data
         db.session.commit()
         flash('Assignment updated successfully.', 'success')
         return redirect(url_for('teacher.assignments_list'))
-
     return render_template('teacher/create_assignment.html', form=form, assignment=assignment)
 
 @teacher_bp.route('/delete_assignment/<int:assignment_id>', methods=['POST'])
@@ -439,14 +401,15 @@ def delete_assignment(assignment_id):
     if assignment.teacher_id != current_user.id:
         flash('You are not authorized to delete this assignment.', 'danger')
         return redirect(url_for('teacher.dashboard'))
+
     db.session.delete(assignment)
     db.session.commit()
     flash('Assignment deleted successfully.', 'success')
     return redirect(url_for('teacher.assignments_list'))
 
-# --- Assignment Tasks Management ---
-@teacher_bp.route('/add_assignment_task/<int:assignment_id>', methods=['GET', 'POST'])
-def add_assignment_task(assignment_id):
+# --- Assignment Task Management ---
+@teacher_bp.route('/add_task/<int:assignment_id>', methods=['GET', 'POST'])
+def add_task(assignment_id):
     """
     Route to add a new task to a specific assignment.
     """
@@ -454,143 +417,226 @@ def add_assignment_task(assignment_id):
     if assignment.teacher_id != current_user.id:
         flash('You are not authorized to add tasks to this assignment.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
+
     form = AssignmentTaskForm()
     if form.validate_on_submit():
         new_task = AssignmentTask(
             assignment_id=assignment.id,
-            description=form.description.data,
-            file_url=form.file_url.data
+            task_type=form.task_type.data,
+            instructions=form.instructions.data
         )
         db.session.add(new_task)
         db.session.commit()
-        flash('Task added successfully!', 'success')
-        return redirect(url_for('teacher.view_assignment_details', assignment_id=assignment.id))
-    
-    return render_template('teacher/add_assignment_task.html', form=form, assignment=assignment)
+        flash('Task added successfully.', 'success')
+        return redirect(url_for('teacher.add_task', assignment_id=assignment.id))
 
-@teacher_bp.route('/edit_assignment_task/<int:task_id>', methods=['GET', 'POST'])
-def edit_assignment_task(task_id):
+    tasks = AssignmentTask.query.filter_by(assignment_id=assignment.id).all()
+    return render_template('teacher/add_task.html', form=form, assignment=assignment, tasks=tasks)
+
+@teacher_bp.route('/edit_task/<int:task_id>', methods=['GET', 'POST'])
+def edit_task(task_id):
     """
-    Route to edit an existing assignment task.
+    Route to edit an existing task.
     """
     task = AssignmentTask.query.get_or_404(task_id)
-    if task.assignment.teacher_id != current_user.id:
+    assignment = Assignment.query.get_or_404(task.assignment_id)
+
+    if assignment.teacher_id != current_user.id:
         flash('You are not authorized to edit this task.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
+
     form = AssignmentTaskForm(obj=task)
     if form.validate_on_submit():
-        task.description = form.description.data
-        task.file_url = form.file_url.data
+        task.task_type = form.task_type.data
+        task.instructions = form.instructions.data
         db.session.commit()
         flash('Task updated successfully.', 'success')
-        return redirect(url_for('teacher.view_assignment_details', assignment_id=task.assignment_id))
+        return redirect(url_for('teacher.add_task', assignment_id=assignment.id))
 
-    return render_template('teacher/edit_assignment_task.html', form=form, task=task)
+    return render_template('teacher/edit_task.html', form=form, assignment=assignment, task=task)
 
-@teacher_bp.route('/delete_assignment_task/<int:task_id>', methods=['POST'])
-def delete_assignment_task(task_id):
+@teacher_bp.route('/delete_task/<int:task_id>', methods=['POST'])
+def delete_task(task_id):
     """
-    Route to delete an assignment task.
+    Route to delete a task from an assignment.
     """
     task = AssignmentTask.query.get_or_404(task_id)
-    if task.assignment.teacher_id != current_user.id:
+    assignment = Assignment.query.get_or_404(task.assignment_id)
+
+    if assignment.teacher_id != current_user.id:
         flash('You are not authorized to delete this task.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
-    assignment_id = task.assignment_id
+
     db.session.delete(task)
     db.session.commit()
     flash('Task deleted successfully.', 'success')
-    return redirect(url_for('teacher.view_assignment_details', assignment_id=assignment_id))
+    return redirect(url_for('teacher.add_task', assignment_id=assignment.id))
 
-@teacher_bp.route('/view_assignment_details/<int:assignment_id>')
-def view_assignment_details(assignment_id):
-    """
-    Page showing a list of tasks for a specific assignment.
-    """
-    assignment = Assignment.query.options(joinedload(Assignment.tasks)).get_or_404(assignment_id)
-    if assignment.teacher_id != current_user.id:
-        flash('You are not authorized to view this assignment.', 'danger')
-        return redirect(url_for('teacher.dashboard'))
-    
-    return render_template('teacher/view_assignment_details.html', assignment=assignment)
-
+# --- View and Grade Assignment Submissions ---
 @teacher_bp.route('/view_assignment_submissions/<int:assignment_id>')
 def view_assignment_submissions(assignment_id):
     """
-    Page for teachers to see submissions for an assignment.
+    Route to view all submissions for a specific assignment.
     """
     assignment = Assignment.query.get_or_404(assignment_id)
     if assignment.teacher_id != current_user.id:
         flash('You are not authorized to view submissions for this assignment.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
-    submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment_id).options(joinedload(AssignmentSubmission.student)).all()
-    
-    return render_template('teacher/view_assignment_submissions.html', assignment=assignment, submissions=submissions)
+
+    # eager-load الطالب مع التسليمات لتقليل الاستعلامات
+    submissions = (
+        AssignmentSubmission.query
+        .options(joinedload(AssignmentSubmission.student))
+        .filter_by(assignment_id=assignment.id)
+        .all()
+    )
+    tasks = AssignmentTask.query.filter_by(assignment_id=assignment.id).all()
+
+    return render_template(
+        'teacher/view_assignment_submissions.html',
+        assignment=assignment,
+        submissions=submissions,
+        tasks=tasks
+    )
 
 @teacher_bp.route('/grade_submission/<int:submission_id>', methods=['GET', 'POST'])
 def grade_submission(submission_id):
     """
-    Route for teachers to grade an assignment submission.
+    Route to grade a specific assignment submission.
     """
     submission = AssignmentSubmission.query.get_or_404(submission_id)
+
     if submission.assignment.teacher_id != current_user.id:
         flash('You are not authorized to grade this submission.', 'danger')
         return redirect(url_for('teacher.dashboard'))
-    
-    form = GradingForm()
+
+    form = GradingForm(obj=submission)
     if form.validate_on_submit():
         submission.grade = form.grade.data
         submission.feedback = form.feedback.data
         submission.graded_at = datetime.utcnow()
         db.session.commit()
-        flash('Submission graded successfully!', 'success')
-        return redirect(url_for('teacher.view_assignment_submissions', assignment_id=submission.assignment_id))
-    
-    # Pre-populate form on GET
-    form.grade.data = submission.grade
-    form.feedback.data = submission.feedback
-    
-    return render_template('teacher/grade_submission.html', form=form, submission=submission)
+        flash('Grading saved successfully.', 'success')
+        return redirect(url_for('teacher.view_assignment_submissions', assignment_id=submission.assignment.id))
+
+    uploaded_file_url = None
+    if submission.uploaded_filename:
+        # ملاحظة: هذه وصلة وهمية حتى تعتمد على مسار التحميل لديك
+        try:
+            uploaded_file_url = url_for('student.uploaded_file', filename=submission.uploaded_filename)
+        except Exception:
+            uploaded_file_url = None
+
+    return render_template(
+        'teacher/grade_submission.html',
+        form=form,
+        submission=submission,
+        assignment=submission.assignment,
+        uploaded_file_url=uploaded_file_url
+    )
+
+@teacher_bp.route('/delete_submission/<int:submission_id>', methods=['POST'])
+def delete_submission(submission_id):
+    """
+    Route to delete an assignment submission.
+    """
+    submission = AssignmentSubmission.query.get_or_404(submission_id)
+
+    if submission.assignment.teacher_id != current_user.id:
+        flash('You are not authorized to delete this submission.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
+    if submission.uploaded_filename:
+        file_path = os.path.join(
+            current_app.config['ASSIGNMENTS_UPLOAD_FOLDER'],
+            str(submission.assignment_id),
+            str(submission.student_id),
+            submission.uploaded_filename
+        )
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                flash('Uploaded file deleted successfully.', 'info')
+        except Exception as e:
+            current_app.logger.error(f"Error deleting file {file_path}: {str(e)}")
+
+    db.session.delete(submission)
+    db.session.commit()
+    flash('Submission deleted successfully.', 'success')
+    return redirect(url_for('teacher.view_assignment_submissions', assignment_id=submission.assignment_id))
+
+@teacher_bp.route('/subject_results/<int:subject_id>')
+def view_subject_results(subject_id):
+    """
+    View student results for all exams in a specific subject.
+    """
+    subject = Subject.query.get_or_404(subject_id)
+    exams = Exam.query.filter_by(subject_id=subject.id, teacher_id=current_user.id).all()
+
+    exam_results_by_exam = {}
+
+    for exam in exams:
+        # eager-load الطالب مع النتائج
+        results = (
+            ExamResult.query
+            .filter_by(exam_id=exam.id)
+            .options(joinedload(ExamResult.student))
+            .all()
+        )
+        # لضمان التوافق مع أي استخدام لاحق:
+        for result in results:
+            if not getattr(result, "student", None):
+                result.student = User.query.get(result.student_id)
+        exam_results_by_exam[exam] = results
+
+    return render_template(
+        'teacher/subject_results.html',
+        title=f"Student Results for {subject.name}",
+        subject=subject,
+        exam_results_by_exam=exam_results_by_exam
+    )
 
 # --- Live Sessions Management ---
 @teacher_bp.route('/live_sessions')
 def live_sessions():
-    """
-    Page showing a list of live sessions created by the teacher.
-    """
+    """View live broadcast sessions."""
     sessions = LiveSession.query.filter_by(teacher_id=current_user.id).order_by(LiveSession.start_time.desc()).all()
     return render_template('teacher/live_sessions.html', sessions=sessions)
 
-
 @teacher_bp.route('/start_live_session', methods=['GET', 'POST'])
 def start_live_session():
-    """
-    Route to create and start a new live session.
-    """
-    form = LiveSessionForm()
-    
+    """Start a new live broadcast session."""
+    # Prevent multiple active sessions for the same teacher
+    if LiveSession.query.filter_by(teacher_id=current_user.id, is_active=True).first():
+        flash('لديك بالفعل جلسة بث نشطة. يرجى إنهاؤها قبل بدء جلسة جديدة.', 'warning')
+        return redirect(url_for('teacher.live_sessions'))
+
     try:
+        form = LiveSessionForm()
         if form.validate_on_submit():
+            timestamp = int(datetime.now().timestamp())
+            stream_url = f"teacher_{current_user.id}_{timestamp}"
+
             new_session = LiveSession(
+                teacher_id=current_user.id,
+                subject_id=form.subject_id.data,
                 title=form.title.data,
                 description=form.description.data,
-                subject_id=form.subject_id.data,
-                teacher_id=current_user.id,
-                is_private=form.is_private.data
+                stream_url=stream_url,
+                is_active=True,
+                start_time=datetime.utcnow()
             )
-            if form.is_private.data and form.password.data:
+
+            if getattr(form, "is_private", None) and form.is_private.data:
                 new_session.set_password(form.password.data)
-            
+                flash('تم إنشاء جلسة خاصة بكلمة مرور.', 'info')
+
             db.session.add(new_session)
             db.session.commit()
-            
-            flash('Live session created and started successfully!', 'success')
+
+            flash('تم بدء جلسة البث المباشر بنجاح!', 'success')
             return redirect(url_for('teacher.live_broadcast', session_id=new_session.id))
-        
+
         return render_template('teacher/start_live_session.html', form=form)
 
     except Exception as e:
@@ -620,5 +666,7 @@ def end_live_session(session_id):
     session.is_active = False
     session.end_time = datetime.utcnow()
     db.session.commit()
-    flash('Live session has been successfully ended.', 'success')
+
+    flash('Live session ended successfully.', 'success')
+    # ✅ توجيه إلى قائمة الجلسات بدل صفحة البث غير النشطة
     return redirect(url_for('teacher.live_sessions'))
