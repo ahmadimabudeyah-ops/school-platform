@@ -242,96 +242,75 @@ def add_question(exam_id):
     questions = Question.query.filter_by(exam_id=exam.id).all()
     return render_template('teacher/add_question.html', form=form, exam=exam, questions=questions)
 
-
 @teacher_bp.route('/edit_question/<int:question_id>', methods=['GET', 'POST'])
-@login_required
 def edit_question(question_id):
-    """
-    Route to edit an existing question.
-    """
-    try:
-        question = Question.query.get_or_404(question_id)
-        exam = Exam.query.get_or_404(question.exam_id)
+    question = Question.query.get_or_404(question_id)
+    exam = question.exam
+    if exam.teacher_id != current_user.id:
+        flash('You are not authorized to edit this question.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
 
-        if exam.teacher_id != current_user.id:
-            flash('You are not authorized to edit questions for this exam.', 'danger')
-            return redirect(url_for('teacher.dashboard'))
+    form = QuestionForm(obj=question)
+    
+    # تحميل الخيارات الحالية في النموذج
+    # ملاحظة: يجب أن تكون لديك 4 خيارات على الأقل في النموذج
+    choices_list = question.choices
+    for i, choice in enumerate(choices_list):
+        if i == 0:
+            form.choice1.data = choice.text
+            form.is_correct1.data = choice.is_correct
+        elif i == 1:
+            form.choice2.data = choice.text
+            form.is_correct2.data = choice.is_correct
+        elif i == 2:
+            form.choice3.data = choice.text
+            form.is_correct3.data = choice.is_correct
+        elif i == 3:
+            form.choice4.data = choice.text
+            form.is_correct4.data = choice.is_correct
 
-        form = QuestionForm(obj=question)  # 🔥 تغيير رئيسي: استخدام obj=question لملء النموذج
-
-        if request.method == 'GET':
-            # تعبئة خيارات الاختيار من متعدد يدوياً لضمان الترتيب
-            if question.question_type == 'multiple_choice':
-                choices = sorted(question.choices, key=lambda x: x.id)
-                
-                # تعبئة الحقول بالخيارات المرتبة
-                if len(choices) > 0:
-                    form.choice1.data = choices[0].text
-                    form.is_correct1.data = choices[0].is_correct
-                if len(choices) > 1:
-                    form.choice2.data = choices[1].text
-                    form.is_correct2.data = choices[1].is_correct
-                if len(choices) > 2:
-                    form.choice3.data = choices[2].text
-                    form.is_correct3.data = choices[2].is_correct
-                if len(choices) > 3:
-                    form.choice4.data = choices[3].text
-                    form.is_correct4.data = choices[3].is_correct
-            # لا حاجة لتعبئة الحقول الأخرى يدوياً بعد الآن، `obj=question` يتكفل بذلك.
-
-        if form.validate_on_submit():
-            # تحديث البيانات الأساسية
+    if form.validate_on_submit():
+        try:
+            # تحديث حقول السؤال الأساسية
             question.question_type = form.question_type.data
             question.text = form.text.data
             question.points = form.points.data
+            question.correct_answer = form.correct_answer.data if form.question_type.data != 'multiple_choice' else ''
 
-            # معالجة حسب نوع السؤال
-            if question.question_type == 'multiple_choice':
-                # حذف الخيارات القديمة
-                for choice in question.choices:
-                    db.session.delete(choice)
+            # التعامل مع الخيارات بناءً على نوع السؤال
+            if form.question_type.data == 'multiple_choice':
+                # حذف الخيارات القديمة قبل إضافة الجديدة
+                Choice.query.filter_by(question_id=question.id).delete()
                 
-                question.correct_answer = None
-                
-                # إضافة الخيارات الجديدة مع التحقق من عدم الفراغ
-                choices_data = [
-                    (form.choice1.data, form.is_correct1.data),
-                    (form.choice2.data, form.is_correct2.data),
-                    (form.choice3.data, form.is_correct3.data),
-                    (form.choice4.data, form.is_correct4.data)
+                # إضافة الخيارات الجديدة
+                choices = [
+                    {'text': form.choice1.data, 'is_correct': form.is_correct1.data},
+                    {'text': form.choice2.data, 'is_correct': form.is_correct2.data},
+                    {'text': form.choice3.data, 'is_correct': form.is_correct3.data},
+                    {'text': form.choice4.data, 'is_correct': form.is_correct4.data},
                 ]
-                
-                for text, is_correct in choices_data:
-                    if text and text.strip():
-                        choice = Choice(
-                            question_id=question.id, 
-                            text=text.strip(), 
-                            is_correct=is_correct
+                for choice_data in choices:
+                    if choice_data['text']:  # تأكد من أن الخيار ليس فارغًا
+                        new_choice = Choice(
+                            question_id=question.id,
+                            text=choice_data['text'],
+                            is_correct=choice_data['is_correct']
                         )
-                        db.session.add(choice)
-            else:
-                # للأنواع الأخرى
-                question.correct_answer = form.correct_answer.data
-                # حذف أي خيارات موجودة مسبقاً
-                for choice in question.choices:
-                    db.session.delete(choice)
+                        db.session.add(new_choice)
 
-            db.session.commit()
-            
             # تحديث النقاط الكلية للاختبار
             exam.total_points = sum(q.points for q in exam.questions)
+
             db.session.commit()
+            flash('تم تحديث السؤال بنجاح!', 'success')
+            return redirect(url_for('teacher.view_exam_questions', exam_id=exam.id))
 
-            flash('تم تحديث السؤال بنجاح.', 'success')
-            return redirect(url_for('teacher.add_question', exam_id=exam.id))
-            
-        return render_template('teacher/edit_question.html', form=form, exam=exam, question=question)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error editing question: {e}")
+            flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
 
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error updating question {question_id}: {str(e)}")
-        flash('حدث خطأ غير متوقع أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى.', 'danger')
-        return redirect(url_for('teacher.dashboard'))
+    return render_template('teacher/edit_question.html', form=form, question=question, exam=exam)
     
 @teacher_bp.route('/delete_question/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
