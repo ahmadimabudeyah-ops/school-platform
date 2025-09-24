@@ -34,9 +34,9 @@
                   <a href="{{ url_for('teacher.view_assignment_submissions', assignment_id=assignment.id) }}" class="btn btn-sm btn-success me-1" title="عرض التقديمات"><i class="bi bi-eye"></i> التقديمات</a>
                   <a href="{{ url_for('teacher.edit_assignment', assignment_id=assignment.id) }}" class="btn btn-sm btn-warning me-1" title="تعديل الواجب"><i class="bi bi-pencil"></i></a>
                   <form action="{{ url_for('teacher.delete_assignment', assignment_id=assignment.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الواجب؟');">
-                    {{ form.hidden_tag() }}  <!-- إضافة هذا السطر -->
-                    <button type="submit" class="btn btn-sm btn-danger" title="حذف الواجب"><i class="bi bi-trash"></i></button>
-                  </form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <button type="submit" class="btn btn-sm btn-danger" title="حذف الواجب"><i class="bi bi-trash"></i></button>
+</form>
                 </td>
               </tr>
             {% endfor %}
