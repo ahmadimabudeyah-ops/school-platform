@@ -244,17 +244,18 @@ def edit_question(question_id):
         flash('You are not authorized to edit this question.', 'danger')
         return redirect(url_for('teacher.dashboard'))
 
-    form = QuestionForm()  
+    form = QuestionForm()
 
     if request.method == 'GET':
+        # تعبئة البيانات الحالية في النموذج
         form.question_type.data = question.question_type
         form.text.data = question.text
         form.points.data = question.points
-        if question.question_type != 'multiple_choice':
-            form.correct_answer.data = question.correct_answer
+        form.correct_answer.data = question.correct_answer
 
-        choices = question.choices
-        if choices:
+        # تعبئة الخيارات إذا كان سؤال اختيار من متعدد
+        if question.question_type == 'multiple_choice':
+            choices = question.choices
             for i, choice in enumerate(choices):
                 if i == 0:
                     form.choice1.data = choice.text
@@ -271,37 +272,45 @@ def edit_question(question_id):
 
     if form.validate_on_submit():
         try:
+            # حفظ التغييرات الأساسية
             question.question_type = form.question_type.data
             question.text = form.text.data
             question.points = form.points.data
-            if question.question_type != 'multiple_choice':
-                question.correct_answer = form.correct_answer.data
-            else:
-                question.correct_answer = None
 
+            # معالجة الإجابة الصحيحة بناءً على نوع السؤال
             if question.question_type == 'multiple_choice':
+                question.correct_answer = None  # لا يوجد إجابة نصية للاختيار من متعدد
+                
+                # حذف الخيارات القديمة
                 Choice.query.filter_by(question_id=question.id).delete()
                 
+                # إضافة الخيارات الجديدة
                 choices_data = [
-                    {'text': form.choice1.data, 'is_correct': form.is_correct1.data},
-                    {'text': form.choice2.data, 'is_correct': form.is_correct2.data},
-                    {'text': form.choice3.data, 'is_correct': form.is_correct3.data},
-                    {'text': form.choice4.data, 'is_correct': form.is_correct4.data},
+                    (form.choice1.data, form.is_correct1.data),
+                    (form.choice2.data, form.is_correct2.data),
+                    (form.choice3.data, form.is_correct3.data),
+                    (form.choice4.data, form.is_correct4.data)
                 ]
-                for choice_data in choices_data:
-                    if choice_data['text']:
-                        new_choice = Choice(
+                
+                for text, is_correct in choices_data:
+                    if text:  # فقط إذا كان النص غير فارغ
+                        choice = Choice(
                             question_id=question.id,
-                            text=choice_data['text'],
-                            is_correct=choice_data['is_correct']
+                            text=text,
+                            is_correct=is_correct
                         )
-                        db.session.add(new_choice)
+                        db.session.add(choice)
+            else:
+                # للأسئلة النصية وصح/خطأ، حفظ الإجابة الصحيحة وحذف الخيارات
+                question.correct_answer = form.correct_answer.data
+                Choice.query.filter_by(question_id=question.id).delete()
 
+            # تحديث النقاط الكلية للاختبار
             exam.total_points = sum(q.points for q in exam.questions)
             db.session.commit()
             
-            flash('تم تحديث السؤال بنجاح! ', 'success')
-            return redirect(url_for('teacher.view_exam_questions', exam_id=exam.id))
+            flash('تم تحديث السؤال بنجاح!', 'success')
+            return redirect(url_for('teacher.add_question', exam_id=exam.id))
 
         except Exception as e:
             db.session.rollback()
