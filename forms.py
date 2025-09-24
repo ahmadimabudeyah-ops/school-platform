@@ -132,6 +132,8 @@ class ExamForm(FlaskForm):
 
 ### -------- نماذج الأسئلة -------- ###
 
+### -------- نماذج الأسئلة -------- ###
+
 class QuestionForm(FlaskForm):
     """نموذج لإضافة سؤال جديد."""
     question_type = SelectField('نوع السؤال', choices=[
@@ -153,12 +155,35 @@ class QuestionForm(FlaskForm):
     choice4 = StringField('الخيار 4', validators=[Optional()])
     is_correct4 = BooleanField('صحيح', false_values=(False, 'false', '0', ''))
 
-
     submit = SubmitField('إضافة السؤال')
 
-    def validate(self):
-        # إصلاح: تجاوز التحقق مؤقتاً للتصحيح
-        return super().validate()
+    def validate(self, extra_validators=None):
+        # استدعاء الدالة الأصلية من الكلاس الأساسي أولاً
+        if not super().validate():
+            return False
+            
+        # تحقق إضافي للاختيار من متعدد
+        if self.question_type.data == 'multiple_choice':
+            choices = [self.choice1.data, self.choice2.data, self.choice3.data, self.choice4.data]
+            non_empty_choices = [choice for choice in choices if choice and choice.strip()]
+            
+            if len(non_empty_choices) < 2:
+                self.choice1.errors.append('يجب إدخال خيارين على الأقل لسؤال الاختيار من متعدد.')
+                return False
+                
+            # التحقق من تحديد خيار صحيح واحد على الأقل
+            correct_choices = [
+                self.is_correct1.data,
+                self.is_correct2.data, 
+                self.is_correct3.data,
+                self.is_correct4.data
+            ]
+            
+            if not any(correct_choices):
+                self.is_correct1.errors.append('يجب تحديد خيار صحيح واحد على الأقل.')
+                return False
+                
+        return True
 
 class ChoiceForm(FlaskForm):
     """نموذج لإضافة أو تعديل خيار لسؤال اختيار من متعدد."""

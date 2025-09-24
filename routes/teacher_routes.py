@@ -284,14 +284,20 @@ def edit_question(question_id):
                 # حذف الخيارات القديمة
                 Choice.query.filter_by(question_id=question.id).delete()
                 
-                # إصلاح: معالجة قيم Boolean بشكل صحيح من request
+                # إصلاح: معالجة قيم Boolean بشكل صحيح
+                def get_boolean_value(field_name):
+                    """الحصول على قيمة Boolean بشكل صحيح من النموذج"""
+                    value = request.form.get(field_name)
+                    return value in ['y', 'true', 'True', '1', 'on', True]
+                
                 choices_data = [
-                    (form.choice1.data, bool(request.form.get('is_correct1'))),
-                    (form.choice2.data, bool(request.form.get('is_correct2'))),
-                    (form.choice3.data, bool(request.form.get('is_correct3'))),
-                    (form.choice4.data, bool(request.form.get('is_correct4')))
+                    (form.choice1.data, get_boolean_value('is_correct1')),
+                    (form.choice2.data, get_boolean_value('is_correct2')),
+                    (form.choice3.data, get_boolean_value('is_correct3')),
+                    (form.choice4.data, get_boolean_value('is_correct4'))
                 ]
                 
+                # إضافة الخيارات الجديدة
                 for text, is_correct in choices_data:
                     if text and text.strip():  # فقط إذا كان النص غير فارغ
                         choice = Choice(
