@@ -75,6 +75,41 @@
   </div>
 
   <script>
+
+document.getElementById('questionForm').addEventListener('submit', function(e) {
+    var questionType = document.getElementById('question_type').value;
+    
+    if (questionType === 'multiple_choice') {
+        var hasCorrect = false;
+        var hasChoices = false;
+        
+        // التحقق من وجود خيارات صحيحة
+        for (var i = 1; i <= 4; i++) {
+            var choiceInput = document.getElementById('choice' + i);
+            var correctCheckbox = document.getElementById('is_correct' + i);
+            
+            if (choiceInput && choiceInput.value.trim()) {
+                hasChoices = true;
+                if (correctCheckbox && correctCheckbox.checked) {
+                    hasCorrect = true;
+                }
+            }
+        }
+        
+        if (!hasChoices) {
+            alert('يجب إدخال خيارات لسؤال الاختيار من متعدد.');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (!hasCorrect) {
+            alert('يجب تحديد إجابة صحيحة واحدة على الأقل.');
+            e.preventDefault();
+            return false;
+        }
+    }
+});
+
     function toggleChoiceFields() {
       var questionType = document.getElementById('question_type').value;
       var mcFields = document.getElementById('multiple_choice_fields');

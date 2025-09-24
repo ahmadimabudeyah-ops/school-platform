@@ -284,19 +284,19 @@ def edit_question(question_id):
                 # حذف الخيارات القديمة
                 Choice.query.filter_by(question_id=question.id).delete()
                 
-                # إضافة الخيارات الجديدة
+                # إضافة الخيارات الجديدة - إصلاح هنا
                 choices_data = [
-                    (form.choice1.data, form.is_correct1.data),
-                    (form.choice2.data, form.is_correct2.data),
-                    (form.choice3.data, form.is_correct3.data),
-                    (form.choice4.data, form.is_correct4.data)
+                    (form.choice1.data, form.is_correct1.data if form.is_correct1.data else False),
+                    (form.choice2.data, form.is_correct2.data if form.is_correct2.data else False),
+                    (form.choice3.data, form.is_correct3.data if form.is_correct3.data else False),
+                    (form.choice4.data, form.is_correct4.data if form.is_correct4.data else False)
                 ]
                 
                 for text, is_correct in choices_data:
-                    if text:  # فقط إذا كان النص غير فارغ
+                    if text and text.strip():  # فقط إذا كان النص غير فارغ
                         choice = Choice(
                             question_id=question.id,
-                            text=text,
+                            text=text.strip(),
                             is_correct=is_correct
                         )
                         db.session.add(choice)

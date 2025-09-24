@@ -145,13 +145,13 @@ class QuestionForm(FlaskForm):
 
     # خيارات سؤال الاختيار من متعدد (حتى 4 خيارات)
     choice1 = StringField('الخيار 1', validators=[Optional()])
-    is_correct1 = BooleanField('صحيح')
+    is_correct1 = BooleanField('صحيح', default=False)  # إضافة default=False
     choice2 = StringField('الخيار 2', validators=[Optional()])
-    is_correct2 = BooleanField('صحيح')
+    is_correct2 = BooleanField('صحيح', default=False)  # إضافة default=False
     choice3 = StringField('الخيار 3', validators=[Optional()])
-    is_correct3 = BooleanField('صحيح')
+    is_correct3 = BooleanField('صحيح', default=False)  # إضافة default=False
     choice4 = StringField('الخيار 4', validators=[Optional()])
-    is_correct4 = BooleanField('صحيح')
+    is_correct4 = BooleanField('صحيح', default=False)  # إضافة default=False
 
     submit = SubmitField('إضافة السؤال')
 
@@ -160,16 +160,13 @@ class QuestionForm(FlaskForm):
         if not initial_validation:
             return False
 
+        # إصلاح التحقق من القيم المنطقية
         if self.question_type.data in ['short_answer', 'true_false']:
-            if not self.correct_answer.data:
+            if not self.correct_answer.data or not self.correct_answer.data.strip():
                 self.correct_answer.errors.append('هذا الحقل مطلوب للسؤال القصير وصح/خطأ.')
                 return False
             if self.question_type.data == 'true_false' and self.correct_answer.data.lower() not in ['true', 'false']:
                 self.correct_answer.errors.append('الإجابة الصحيحة لسؤال صح/خطأ يجب أن تكون "true" أو "false".')
-                return False
-            # لا يمكن وجود خيارات مع هذه الأنواع
-            if any([self.choice1.data, self.choice2.data, self.choice3.data, self.choice4.data]):
-                self.choice1.errors.append('لا يمكن إضافة خيارات لسؤال من نوع إجابة قصيرة أو صح/خطأ.')
                 return False
 
         elif self.question_type.data == 'multiple_choice':
@@ -180,11 +177,12 @@ class QuestionForm(FlaskForm):
                 (self.choice4.data, self.is_correct4.data),
             ]
 
-            active_choices = [c for c, _ in choices if c]
-            correct_choices = [c for c, is_c in choices if c and is_c]
+            # تصفية الخيارات الفارغة
+            active_choices = [c for c, _ in choices if c and c.strip()]
+            correct_choices = [c for c, is_c in choices if c and c.strip() and is_c]
 
-            if not active_choices:
-                self.choice1.errors.append('يجب توفير خيار واحد على الأقل لسؤال الاختيار من متعدد.')
+            if len(active_choices) < 2:
+                self.choice1.errors.append('يجب توفير خيارين على الأقل لسؤال الاختيار من متعدد.')
                 return False
 
             if len(correct_choices) == 0:
@@ -192,10 +190,6 @@ class QuestionForm(FlaskForm):
                 return False
             elif len(correct_choices) > 1:
                 self.choice1.errors.append('يجب تحديد إجابة صحيحة واحدة فقط لسؤال الاختيار من متعدد.')
-                return False
-
-            if self.correct_answer.data:
-                self.correct_answer.errors.append('لا يمكن تحديد إجابة صحيحة نصية لسؤال الاختيار من متعدد.')
                 return False
 
         return True
