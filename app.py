@@ -3,7 +3,7 @@ import os
 import logging
 from datetime import datetime
 
-from flask import Flask, redirect, url_for, request
+from flask import Flask, redirect, url_for, request, render_template
 from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -89,6 +89,12 @@ def create_app():
             elif current_user.role == 'student':
                 return redirect(url_for('student.dashboard'))
         return redirect(url_for('auth.login'))
+
+    # صفحة حول المنصة
+    @app.route('/about')
+    def about():
+        """صفحة حول المنصة"""
+        return render_template('about.html')
 
     # تمرير datetime للقوالب
     @app.context_processor

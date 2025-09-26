@@ -151,6 +151,41 @@
       transform: translateX(5px);
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
+
+    /* إضافة إلى التنسيقات في base.html */
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4rem 0;
+        border-radius: 1rem;
+        margin-bottom: 3rem;
+    }
+
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary-color), #2980b9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .team-card {
+        transition: transform 0.3s ease;
+    }
+
+    .team-card:hover {
+        transform: translateY(-10px);
+    }
+
+    .contact-info {
+        border-left: 4px solid var(--primary-color);
+        padding-left: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -166,6 +201,13 @@
 
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <!-- زر حول المنصة يظهر للجميع -->
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('about') }}">
+              <i class="bi bi-info-circle me-1"></i> حول المنصة
+            </a>
+          </li>
+          
           {% if current_user.is_authenticated %}
             {% if current_user.role == 'admin' %}
             
@@ -174,10 +216,10 @@
               <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.review_assignments') }}"><i class="bi bi-list-task me-1"></i> مراجعة الواجبات</a></li>
               <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reports') }}"><i class="bi bi-bar-chart me-1"></i> التقارير</a></li>
               <li class="nav-item">
-  <a class="nav-link" href="{{ url_for('admin.assignments_report') }}">
-    <i class="bi bi-clipboard-check"></i> تقرير الواجبات
-  </a>
-</li>
+                <a class="nav-link" href="{{ url_for('admin.assignments_report') }}">
+                  <i class="bi bi-clipboard-check"></i> تقرير الواجبات
+                </a>
+              </li>
             {% elif current_user.role == 'teacher' %}
               <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher.dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> لوحة المعلم</a></li>
               
