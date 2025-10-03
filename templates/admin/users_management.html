@@ -118,7 +118,7 @@
                     </thead>
                     <tbody>
                         {% for user in users %}
-                        <tr data-role="{{ user.role }}" data-class="{{ user.class_name }}">
+                        <tr data-role="{{ user.role }}" data-class="{{ user.class_name }}" data-user-id="{{ user.id }}">
                             <td>{{ loop.index }}</td>
                             <td>
                                 <div class="d-flex align-items-center">
@@ -194,6 +194,7 @@
                                           method="POST" 
                                           class="d-inline"
                                           onsubmit="return confirm('هل أنت متأكد من حذف المستخدم {{ user.username }}؟');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger" title="حذف المستخدم">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -261,10 +262,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="resetPasswordForm" method="POST" action="{{ url_for('admin.reset_user_password') }}">
-
                 <div class="modal-body">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <input type="hidden" id="resetUserId" name="user_id">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" id="resetUserId" name="user_id" value="">
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">كلمة المرور الجديدة</label>
                         <input type="password" class="form-control" id="newPassword" name="new_password" 
@@ -306,6 +306,7 @@
             </div>
             <form id="editUserForm" method="POST">
                 <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" id="editUserId" name="user_id">
                     <div class="mb-3">
                         <label for="editUsername" class="form-label">اسم المستخدم</label>
@@ -375,7 +376,9 @@ document.getElementById('resetPasswordModal').addEventListener('show.bs.modal', 
     const userId = button.getAttribute('data-user-id');
     const userName = button.getAttribute('data-user-name');
     
+    // هذا السطر هو الحل - تأكد من تعيين قيمة user_id
     document.getElementById('resetUserId').value = userId;
+    
     document.querySelector('#resetPasswordModal .modal-title').innerHTML = 
         `<i class="bi bi-key"></i> إعادة تعيين كلمة المرور - ${userName}`;
     
@@ -388,6 +391,14 @@ document.getElementById('resetPasswordModal').addEventListener('show.bs.modal', 
 document.getElementById('resetPasswordForm').addEventListener('submit', function(event) {
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
+    const userId = document.getElementById('resetUserId').value;
+    
+    // التحقق من وجود user_id
+    if (!userId) {
+        event.preventDefault();
+        alert('خطأ: لم يتم تحديد المستخدم!');
+        return false;
+    }
     
     if (newPassword !== confirmPassword) {
         event.preventDefault();
@@ -415,8 +426,6 @@ document.getElementById('resetPasswordForm').addEventListener('submit', function
 
 // تعديل المستخدم
 function editUser(userId) {
-    // في الواقع، يجب جلب بيانات المستخدم من الخادم
-    // هذا مثال توضيحي فقط
     const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
     if (userRow) {
         const username = userRow.cells[1].querySelector('strong').textContent;
@@ -473,9 +482,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // إضافة تأثيرات للجدول
     const tableRows = document.querySelectorAll('#usersTable tbody tr');
     tableRows.forEach(row => {
-        row.setAttribute('data-user-id', row.querySelector('[data-user-id]') ? 
-            row.querySelector('[data-user-id]').getAttribute('data-user-id') : '');
-        
         row.addEventListener('mouseenter', function() {
             this.style.transform = 'translateX(5px)';
             this.style.transition = 'all 0.3s ease';
@@ -489,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // عرض رسائل الـ Flash تلقائياً
 document.addEventListener('DOMContentLoaded', function() {
-    // البحث عن أي رسائل flash وعرضها
     const flashMessages = document.querySelectorAll('.alert');
     flashMessages.forEach(alert => {
         setTimeout(() => {
@@ -522,7 +527,6 @@ document.addEventListener('DOMContentLoaded', function() {
     margin: 0 2px;
 }
 
-/* تأثيرات عند التمرير */
 .table-hover tbody tr {
     transition: all 0.3s ease;
 }
@@ -533,7 +537,6 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* تخصيص شريط التمرير للجدول */
 .table-responsive::-webkit-scrollbar {
     height: 8px;
 }
@@ -552,7 +555,6 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #a8a8a8;
 }
 
-/* تنسيق البطاقات الإحصائية */
 .card.text-center .card-title {
     font-size: 2rem;
     font-weight: bold;
@@ -564,19 +566,16 @@ document.addEventListener('DOMContentLoaded', function() {
     opacity: 0.9;
 }
 
-/* تحسين مظهر الأزرار */
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
 }
 
-/* تنسيق الـ badges */
 .badge {
     font-size: 0.75em;
     font-weight: 500;
 }
 
-/* تحسين استجابة الجدول للشاشات الصغيرة */
 @media (max-width: 768px) {
     .table-responsive {
         font-size: 0.875rem;
