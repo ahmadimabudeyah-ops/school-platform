@@ -263,8 +263,8 @@
             <form id="resetPasswordForm" method="POST" action="{{ url_for('admin.reset_user_password') }}">
 
                 <div class="modal-body">
-                    {{ form.hidden_tag() }}  <!-- أضف هذا السطر -->
-                    <input type="hidden" id="resetUserId" name="user_id">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" id="resetUserId" name="user_id">
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">كلمة المرور الجديدة</label>
                         <input type="password" class="form-control" id="newPassword" name="new_password" 
