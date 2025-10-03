@@ -245,3 +245,52 @@ def assignments_report():
     return render_template('admin/assignments_report.html', 
                          report_data=report_data,
                          datetime=datetime)
+
+@admin_bp.route('/users_management')
+@login_required
+@role_required('admin')
+def users_management():
+    """
+    صفحة إدارة المستخدمين مع عرض كلمات المرور (لأغراض إدارية فقط)
+    """
+    users = User.query.all()
+    
+    # تجهيز بيانات المستخدمين مع معلومات إضافية
+    users_data = []
+    for user in users:
+        user_info = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role,
+            'class_name': user.class_rel.name if user.class_rel else 'غير محدد',
+            'created_exams': len(user.exams_created),
+            'created_assignments': len(user.assignments_created),
+            'exam_results': len(user.exam_results),
+            'is_active': True  # يمكن إضافة حقل نشط في النموذج لاحقاً
+        }
+        users_data.append(user_info)
+    
+    return render_template('admin/users_management.html', 
+                         users=users_data,
+                         users_count=len(users_data))
+@admin_bp.route('/reset_user_password', methods=['POST'])
+@login_required
+@role_required('admin')
+def reset_user_password():
+    """
+    إعادة تعيين كلمة مرور مستخدم
+    """
+    user_id = request.form.get('user_id')
+    new_password = request.form.get('new_password')
+    
+    if not user_id or not new_password:
+        flash('بيانات غير مكتملة.', 'danger')
+        return redirect(url_for('admin.users_management'))
+    
+    user = User.query.get_or_404(user_id)
+    user.set_password(new_password)
+    db.session.commit()
+    
+    flash(f'تم إعادة تعيين كلمة مرور المستخدم {user.username} بنجاح.', 'success')
+    return redirect(url_for('admin.users_management'))
