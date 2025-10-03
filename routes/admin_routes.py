@@ -274,23 +274,50 @@ def users_management():
     return render_template('admin/users_management.html', 
                          users=users_data,
                          users_count=len(users_data))
+
 @admin_bp.route('/reset_user_password', methods=['POST'])
 @login_required
 @role_required('admin')
 def reset_user_password():
     """
-    إعادة تعيين كلمة مرور مستخدم
+    إعادة تعيين كلمة مرور مستخدم - النسخة المحسنة
     """
-    user_id = request.form.get('user_id')
-    new_password = request.form.get('new_password')
+    try:
+        user_id = request.form.get('user_id')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # التحقق من البيانات المطلوبة
+        if not user_id or not new_password:
+            flash('بيانات غير مكتملة.', 'danger')
+            return redirect(url_for('admin.users_management'))
+        
+        # التحقق من تطابق كلمات المرور
+        if new_password != confirm_password:
+            flash('كلمتا المرور غير متطابقتين!', 'danger')
+            return redirect(url_for('admin.users_management'))
+        
+        # التحقق من طول كلمة المرور
+        if len(new_password) < 6:
+            flash('كلمة المرور يجب أن تكون 6 أحرف على الأقل!', 'danger')
+            return redirect(url_for('admin.users_management'))
+        
+        # البحث عن المستخدم
+        user = User.query.get_or_404(user_id)
+        
+        # منع المستخدم من تغيير كلمة مروره الخاصة (اختياري)
+        if user.id == current_user.id:
+            flash('لا يمكنك تغيير كلمة مرور حسابك من هنا. استخدم صفحة الملف الشخصي.', 'warning')
+            return redirect(url_for('admin.users_management'))
+        
+        # إعادة تعيين كلمة المرور
+        user.set_password(new_password)
+        db.session.commit()
+        
+        flash(f'تم إعادة تعيين كلمة مرور المستخدم {user.username} بنجاح.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ أثناء إعادة تعيين كلمة المرور: {str(e)}', 'danger')
     
-    if not user_id or not new_password:
-        flash('بيانات غير مكتملة.', 'danger')
-        return redirect(url_for('admin.users_management'))
-    
-    user = User.query.get_or_404(user_id)
-    user.set_password(new_password)
-    db.session.commit()
-    
-    flash(f'تم إعادة تعيين كلمة مرور المستخدم {user.username} بنجاح.', 'success')
     return redirect(url_for('admin.users_management'))

@@ -97,7 +97,7 @@
         <div class="card-header bg-dark text-white">
             <h5 class="mb-0">
                 <i class="bi bi-list-check"></i> قائمة المستخدمين
-                <span class="badge bg-light text-dark ms-2">{{ users_count }}</span>
+                <span class="badge bg-light text-dark ms-2" id="usersCountBadge">{{ users_count }}</span>
             </h5>
         </div>
         <div class="card-body">
@@ -145,7 +145,7 @@
                                 </span>
                             </td>
                             <td>
-                                {% if user.class_name != 'غير محدد' %}
+                                {% if user.class_name and user.class_name != 'غير محدد' %}
                                     <span class="badge bg-secondary">{{ user.class_name }}</span>
                                 {% else %}
                                     <span class="text-muted">غير محدد</span>
@@ -260,17 +260,18 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="resetPasswordForm" method="POST">
+            <form id="resetPasswordForm" method="POST" action="{{ url_for('admin.reset_user_password') }}">
+                <div class="modal-body">
                     <input type="hidden" id="resetUserId" name="user_id">
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">كلمة المرور الجديدة</label>
                         <input type="password" class="form-control" id="newPassword" name="new_password" 
                                placeholder="أدخل كلمة المرور الجديدة" required minlength="6">
+                        <div class="form-text">يجب أن تكون كلمة المرور 6 أحرف على الأقل</div>
                     </div>
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">تأكيد كلمة المرور</label>
-                        <input type="password" class="form-control" id="confirmPassword" 
+                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password"
                                placeholder="أعد إدخال كلمة المرور الجديدة" required minlength="6">
                     </div>
                     <div class="alert alert-info">
@@ -279,14 +280,55 @@
                             سيتم تطبيق كلمة المرور الجديدة فوراً على حساب المستخدم.
                         </small>
                     </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i> تأكيد إعادة التعيين
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تحرير المستخدم -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> تعديل بيانات المستخدم
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-warning" onclick="submitPasswordReset()">
-                    <i class="bi bi-check-circle"></i> تأكيد إعادة التعيين
-                </button>
-            </div>
+            <form id="editUserForm" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="editUserId" name="user_id">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">اسم المستخدم</label>
+                        <input type="text" class="form-control" id="editUsername" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">البريد الإلكتروني</label>
+                        <input type="email" class="form-control" id="editEmail" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRole" class="form-label">الدور</label>
+                        <select class="form-select" id="editRole" name="role" required>
+                            <option value="student">طالب</option>
+                            <option value="teacher">معلم</option>
+                            <option value="admin">مشرف</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> حفظ التعديلات
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -322,7 +364,7 @@ function filterTable() {
     });
     
     // تحديث العداد
-    document.querySelector('.card-header .badge').textContent = visibleCount;
+    document.getElementById('usersCountBadge').textContent = visibleCount;
 }
 
 // إعداد Modal إعادة تعيين كلمة المرور
@@ -332,36 +374,82 @@ document.getElementById('resetPasswordModal').addEventListener('show.bs.modal', 
     const userName = button.getAttribute('data-user-name');
     
     document.getElementById('resetUserId').value = userId;
-    document.querySelector('.modal-title').innerHTML = 
+    document.querySelector('#resetPasswordModal .modal-title').innerHTML = 
         `<i class="bi bi-key"></i> إعادة تعيين كلمة المرور - ${userName}`;
+    
+    // تنظيف الحقول عند فتح المودال
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
 });
 
-// تقديم نموذج إعادة تعيين كلمة المرور
-function submitPasswordReset() {
-    const form = document.getElementById('resetPasswordForm');
+// التحقق من كلمات المرور قبل الإرسال
+document.getElementById('resetPasswordForm').addEventListener('submit', function(event) {
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
     if (newPassword !== confirmPassword) {
+        event.preventDefault();
         alert('كلمتا المرور غير متطابقتين!');
-        return;
+        document.getElementById('newPassword').focus();
+        return false;
     }
     
     if (newPassword.length < 6) {
+        event.preventDefault();
         alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل!');
-        return;
+        document.getElementById('newPassword').focus();
+        return false;
     }
     
-    // هنا سيتم إضافة الكود لإرسال الطلب إلى الخادم
-    alert('سيتم تنفيذ إعادة تعيين كلمة المرور عند ربطها بالخادم');
-    // form.submit(); // فك التعليق عند ربط الوظيفة
-}
+    // إظهار رسالة تأكيد
+    const userName = document.querySelector('#resetPasswordModal .modal-title').textContent.replace('إعادة تعيين كلمة المرور - ', '');
+    if (!confirm(`هل أنت متأكد من إعادة تعيين كلمة مرور المستخدم "${userName}"؟`)) {
+        event.preventDefault();
+        return false;
+    }
+    
+    return true;
+});
 
 // تعديل المستخدم
 function editUser(userId) {
-    alert(`سيتم فتح نموذج تعديل المستخدم رقم ${userId}`);
-    // إضافة منطق التعديل هنا
+    // في الواقع، يجب جلب بيانات المستخدم من الخادم
+    // هذا مثال توضيحي فقط
+    const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+    if (userRow) {
+        const username = userRow.cells[1].querySelector('strong').textContent;
+        const email = userRow.cells[2].querySelector('a').textContent;
+        const role = userRow.getAttribute('data-role');
+        
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('editUsername').value = username;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editRole').value = role;
+        
+        // إظهار Modal التعديل
+        const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+        editModal.show();
+    } else {
+        alert('لم يتم العثور على بيانات المستخدم');
+    }
 }
+
+// معالجة نموذج تعديل المستخدم
+document.getElementById('editUserForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('editUserId').value;
+    const username = document.getElementById('editUsername').value;
+    const email = document.getElementById('editEmail').value;
+    const role = document.getElementById('editRole').value;
+    
+    // هنا سيتم إرسال البيانات إلى الخادم
+    alert(`سيتم تحديث بيانات المستخدم:\n\nID: ${userId}\nالاسم: ${username}\nالبريد: ${email}\nالدور: ${role}`);
+    
+    // إغلاق Modal بعد الإرسال
+    const editModal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+    editModal.hide();
+});
 
 // إعادة تعيين الفلاتر
 document.getElementById('resetFilters').addEventListener('click', function() {
@@ -371,7 +459,7 @@ document.getElementById('resetFilters').addEventListener('click', function() {
     filterTable();
 });
 
-// إضافة معالجات الأحداث
+// إضافة معالجات الأحداث للبحث والفلترة
 document.getElementById('searchInput').addEventListener('input', filterTable);
 document.getElementById('roleFilter').addEventListener('change', filterTable);
 document.getElementById('classFilter').addEventListener('change', filterTable);
@@ -379,6 +467,34 @@ document.getElementById('classFilter').addEventListener('change', filterTable);
 // التهيئة الأولية
 document.addEventListener('DOMContentLoaded', function() {
     filterTable();
+    
+    // إضافة تأثيرات للجدول
+    const tableRows = document.querySelectorAll('#usersTable tbody tr');
+    tableRows.forEach(row => {
+        row.setAttribute('data-user-id', row.querySelector('[data-user-id]') ? 
+            row.querySelector('[data-user-id]').getAttribute('data-user-id') : '');
+        
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(5px)';
+            this.style.transition = 'all 0.3s ease';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+});
+
+// عرض رسائل الـ Flash تلقائياً
+document.addEventListener('DOMContentLoaded', function() {
+    // البحث عن أي رسائل flash وعرضها
+    const flashMessages = document.querySelectorAll('.alert');
+    flashMessages.forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
 });
 </script>
 
@@ -405,10 +521,73 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* تأثيرات عند التمرير */
+.table-hover tbody tr {
+    transition: all 0.3s ease;
+}
+
 .table-hover tbody tr:hover {
     background-color: rgba(0, 123, 255, 0.1) !important;
     transform: translateX(5px);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* تخصيص شريط التمرير للجدول */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* تنسيق البطاقات الإحصائية */
+.card.text-center .card-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.card.text-center .card-text {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* تحسين مظهر الأزرار */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* تنسيق الـ badges */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+/* تحسين استجابة الجدول للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group .btn {
+        margin: 1px;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .activity-stats small {
+        font-size: 0.7rem;
+    }
 }
 </style>
 {% endblock %}
