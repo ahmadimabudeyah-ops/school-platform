@@ -251,7 +251,6 @@
 </div>
 
 <!-- Modal إعادة تعيين كلمة المرور -->
-<!-- Modal إعادة تعيين كلمة المرور -->
 <div class="modal fade" id="resetPasswordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -262,8 +261,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="resetPasswordForm" method="POST" action="{{ url_for('admin.reset_user_password') }}">
-                {{ form.hidden_tag() }} <!-- إضافة CSRF token -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <!-- بديل -->
                 <div class="modal-body">
                     <input type="hidden" id="resetUserId" name="user_id">
                     <div class="mb-3">
